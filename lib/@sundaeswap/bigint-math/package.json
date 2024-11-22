@@ -1,0 +1,37 @@
+{
+  "name": "@sundaeswap/bigint-math",
+  "version": "0.6.3",
+  "description": "Minimal BigIntMath library",
+  "repository": "https://github.com/sundaeswap-finance/defi-sdk/tree/master/packages/bigint-math",
+  "license": "MIT",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build:esm": "cross-env BABEL_ENV=esmUnbundled babel src --extensions '.ts,.tsx' --out-dir './dist/esm' --source-maps",
+    "build:cjs": "cross-env BABEL_ENV=cjs babel src --extensions '.ts,.tsx' --out-dir 'dist/cjs' --source-maps && bun set-cjs",
+    "types": "tsc --project ./tsconfig.json",
+    "build": "bun run clean && bun run types && bun run build:esm && bun run build:cjs",
+    "watch": "bun run clean && bun run build && bun run build:esm --watch",
+    "set-cjs": "echo '{ \"type\": \"commonjs\" }' > ./dist/cjs/package.json",
+    "clean": "rm -rf ./dist"
+  },
+  "gitHead": "3ccb3b278e390fccaff23cc252890aaa9e7f4259"
+}

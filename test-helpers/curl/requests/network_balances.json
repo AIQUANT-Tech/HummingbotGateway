@@ -1,0 +1,8 @@
+{
+  "chain": "avalanche",
+  "network": "avalanche",
+  "address": "$AVALANCHE_ADDRESS",
+  "tokenSymbols": [
+    "USDC"
+  ]
+}

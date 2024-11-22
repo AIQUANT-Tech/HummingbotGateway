@@ -1,0 +1,1 @@
+{"version":3,"file":"index.js","names":["BigIntMath"],"sources":["../../src/index.ts"],"sourcesContent":["export * as BigIntMath from \"./BigIntMath.js\";\nexport * from \"./BigIntMath.js\";\n"],"mappings":"AAAA,OAAO,KAAKA,UAAU,MAAM,iBAAiB;AAC7C,cAAc,iBAAiB","ignoreList":[]}

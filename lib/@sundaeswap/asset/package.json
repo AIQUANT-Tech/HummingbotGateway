@@ -1,0 +1,50 @@
+{
+  "name": "@sundaeswap/asset",
+  "version": "1.0.6",
+  "description": "A TypeScript interface to handle digital asset amounts along with their respective metadata.",
+  "type": "module",
+  "author": {
+    "name": "SundaeSwap Labs, Inc.",
+    "url": "https://www.sundaeswap.finance/"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build:esm": "cross-env BABEL_ENV=esmUnbundled babel src --extensions '.ts,.tsx' --out-dir './dist/esm' --source-maps",
+    "build:cjs": "cross-env BABEL_ENV=cjs babel src --extensions '.ts,.tsx' --out-dir 'dist/cjs' --source-maps && bun set-cjs",
+    "types": "tsc --project ./tsconfig.json",
+    "build": "bun run clean && bun run types && bun run build:esm && bun run build:cjs",
+    "watch": "bun run clean && bun run build && bun run build:esm --watch",
+    "set-cjs": "echo '{ \"type\": \"commonjs\" }' > ./dist/cjs/package.json",
+    "clean": "rm -rf ./dist"
+  },
+  "devDependencies": {
+    "@types/jest": "^28.1.4",
+    "jest": "^28.1.2",
+    "ts-jest": "^28.0.5",
+    "ts-node": "^10.8.2",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "@sundaeswap/fraction": "1.0.5"
+  },
+  "gitHead": "131552303ce4d6a8491c75dffde91e11861a7cb3"
+}
