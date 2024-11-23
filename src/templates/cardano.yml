@@ -2,7 +2,7 @@
 allowedSlippage: '1/100'
 
 # For Cardano this will be used to connect to the network via blockfrost API
-blockfrostProjectId: 'mainnetlonRTF3MI354W0JKvhwjlnqH3YBbFvzp'
+blockfrostProjectId: 'mainnettestprojectidforrefKvhwjlnqH3YBbFvzp'
 
 # how long a trade is valid in seconds. 
 ttl: 300
