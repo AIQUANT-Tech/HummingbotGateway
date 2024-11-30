@@ -4,6 +4,7 @@ import { Cosmos } from '../../chains/cosmos/cosmos';
 import { Tezos } from '../../chains/tezos/tezos';
 import { XRPL } from '../../chains/xrpl/xrpl';
 import { Kujira } from '../../chains/kujira/kujira';
+import { Cardano } from '../../chains/cardano/cardano';
 
 import {
   AddWalletRequest,
@@ -84,7 +85,7 @@ export async function addWallet(
     }
     throw e;
   }
-
+  // there is no connection for Cardano 
   try {
     if (connection instanceof Algorand) {
       address = connection.getAccountFromPrivateKey(req.privateKey).addr;
@@ -157,7 +158,14 @@ export async function addWallet(
         req.privateKey,
         passphrase
       );
+    } else if (connection instanceof Cardano) {
+      const wallet = await connection.getWalletFromPrivateKey(req.privateKey); // Await the promise
+      address = wallet.address; // Access the address property
+      // encryptedPrivateKey = await connection.encrypt(req.privateKey, passphrase);
+      encryptedPrivateKey = await connection.encrypt(req.privateKey);
     }
+
+
 
     if (address === undefined || encryptedPrivateKey === undefined) {
       throw new Error('ERROR_RETRIEVING_WALLET_ADDRESS_ERROR_CODE');

@@ -4,9 +4,9 @@
   "properties": {
     "allowedSlippage": { "type": "string" },
     "blockfrostProjectId": { "type": "string" },
-	"defaultPoolId": { 
-    
-  "type": "object",
+    "preprodBlockfrostProjectId": { "type": "string" },
+    "defaultPoolId": {
+      "type": "object",
       "patternProperties": {
         "^\\w+$": {
           "type": "object",
@@ -17,10 +17,9 @@
           "additionalProperties": false
         }
       },
-      "additionalProperties": false 
-
-},
-	"defaultAddress": { "type": "string" },
+      "additionalProperties": false
+    },
+    "defaultAddress": { "type": "string" },
     "ttl": { "type": "integer" },
     "contractAddresses": {
       "type": "object",
@@ -38,5 +37,13 @@
     }
   },
   "additionalProperties": false,
-  "required": ["allowedSlippage","blockfrostProjectId", "ttl", "contractAddresses","defaultPoolId","defaultAddress"]
+  "required": [
+    "allowedSlippage",
+    "blockfrostProjectId",
+    "ttl",
+    "contractAddresses",
+    "defaultPoolId",
+    "defaultAddress",
+    "preprodBlockfrostProjectId"
+  ]
 }

@@ -28,13 +28,16 @@ export const invalidCosmosPrivateKeyError: string =
 export const invalidTezosPrivateKeyError: string =
   'The privateKey param is not a valid Tezos private key.';
 
+export const invalidKujiraPrivateKeyError: string = 'Invalid Kujira mnemonic.';
+
+export const invalidCardanoPrivateKeyError: string =
+  'The privateKey param is not a valid Cardano private key.';
+
+
 export const isAlgorandPrivateKeyOrMnemonic = (str: string): boolean => {
   const parts = str.split(' ');
   return parts.length === 25;
 };
-
-export const invalidKujiraPrivateKeyError: string = 'Invalid Kujira mnemonic.';
-
 // test if a string matches the shape of an Ethereum private key
 export const isEthPrivateKey = (str: string): boolean => {
   return /^(0x|xdc)?[a-fA-F0-9]{64}$/.test(str);
@@ -68,6 +71,18 @@ export const isTezosPrivateKey = (str: string): boolean => {
   }
 };
 
+export const isCardanoPrivateKey = (str: string): boolean => {
+  try {
+    // - Starts with "ed25519_sk" (Cardano's Bech32 private key prefix).
+    // - Followed by valid Bech32 characters (alphanumeric without '1', 'b', 'i', or 'o').
+    // - Bech32 length must be reasonable (typically between 57 and 128 characters).
+
+    return /^ed25519_sk[0-9a-zA-HJ-NP-Z]{53,120}$/.test(str);
+  } catch {
+    return false;
+  }
+};
+
 // given a request, look for a key called privateKey that is an Ethereum private key
 export const validatePrivateKey: Validator = mkSelectingValidator(
   'chain',
@@ -76,78 +91,83 @@ export const validatePrivateKey: Validator = mkSelectingValidator(
     algorand: mkValidator(
       'privateKey',
       invalidAlgorandPrivateKeyOrMnemonicError,
-      (val) => typeof val === 'string' && isAlgorandPrivateKeyOrMnemonic(val)
+      (val) => typeof val === 'string' && isAlgorandPrivateKeyOrMnemonic(val),
     ),
     ethereum: mkValidator(
       'privateKey',
       invalidEthPrivateKeyError,
-      (val) => typeof val === 'string' && isEthPrivateKey(val)
+      (val) => typeof val === 'string' && isEthPrivateKey(val),
     ),
     cronos: mkValidator(
       'privateKey',
       invalidEthPrivateKeyError,
-      (val) => typeof val === 'string' && isEthPrivateKey(val)
+      (val) => typeof val === 'string' && isEthPrivateKey(val),
     ),
     avalanche: mkValidator(
       'privateKey',
       invalidEthPrivateKeyError,
-      (val) => typeof val === 'string' && isEthPrivateKey(val)
+      (val) => typeof val === 'string' && isEthPrivateKey(val),
     ),
     harmony: mkValidator(
       'privateKey',
       invalidEthPrivateKeyError,
-      (val) => typeof val === 'string' && isEthPrivateKey(val)
+      (val) => typeof val === 'string' && isEthPrivateKey(val),
     ),
     near: mkValidator(
       'privateKey',
       invalidNearPrivateKeyError,
-      (val) => typeof val === 'string' && isNearPrivateKey(val)
+      (val) => typeof val === 'string' && isNearPrivateKey(val),
     ),
     cosmos: mkValidator(
       'privateKey',
       invalidCosmosPrivateKeyError,
-      (val) => typeof val === 'string' && isCosmosPrivateKey(val)
+      (val) => typeof val === 'string' && isCosmosPrivateKey(val),
     ),
     osmosis: mkValidator(
       'privateKey',
       invalidCosmosPrivateKeyError,
-      (val) => typeof val === 'string' && isCosmosPrivateKey(val)
+      (val) => typeof val === 'string' && isCosmosPrivateKey(val),
     ),
     polygon: mkValidator(
       'privateKey',
       invalidEthPrivateKeyError,
-      (val) => typeof val === 'string' && isEthPrivateKey(val)
+      (val) => typeof val === 'string' && isEthPrivateKey(val),
     ),
     'binance-smart-chain': mkValidator(
       'privateKey',
       invalidEthPrivateKeyError,
-      (val) => typeof val === 'string' && isEthPrivateKey(val)
+      (val) => typeof val === 'string' && isEthPrivateKey(val),
     ),
     xdc: mkValidator(
       'privateKey',
       invalidEthPrivateKeyError,
-      (val) => typeof val === 'string' && isEthPrivateKey(val)
+      (val) => typeof val === 'string' && isEthPrivateKey(val),
     ),
     tezos: mkValidator(
       'privateKey',
       invalidTezosPrivateKeyError,
-      (val) => typeof val === 'string' && isTezosPrivateKey(val)
+      (val) => typeof val === 'string' && isTezosPrivateKey(val),
     ),
     xrpl: mkValidator(
       'privateKey',
       invalidXRPLPrivateKeyError,
-      (val) => typeof val === 'string' && isXRPLSeedKey(val)
+      (val) => typeof val === 'string' && isXRPLSeedKey(val),
     ),
     kujira: mkValidator(
       'privateKey',
       invalidKujiraPrivateKeyError,
-      (val) => typeof val === 'string' && isKujiraPrivateKey(val)
+      (val) => typeof val === 'string' && isKujiraPrivateKey(val),
     ),
-  }
+    cardano: mkValidator(
+      'privateKey',
+      invalidCardanoPrivateKeyError,
+      (val) => typeof val === 'string' && isCardanoPrivateKey(val),
+    ),
+  },
 );
 
 export const invalidChainError: string =
-  'chain must be "ethereum", "avalanche", "near", "harmony", "cosmos", "osmosis", "binance-smart-chain", or "kujira"';
+  'chain must be "ethereum", "avalanche", "near", "harmony", "cosmos", "osmosis", "binance-smart-chain", "kujira" or "cardano"';
 
 export const invalidNetworkError: string =
   'expected a string for the network key';
@@ -177,33 +197,34 @@ export const validateChain: Validator = mkValidator(
       val === 'binance-smart-chain' ||
       val === 'tezos' ||
       val === 'xrpl' ||
-      val === 'kujira')
+      val === 'kujira' ||
+      val === 'cardano'),
 );
 
 export const validateNetwork: Validator = mkValidator(
   'network',
   invalidNetworkError,
-  (val) => typeof val === 'string'
+  (val) => typeof val === 'string',
 );
 
 export const validateAddress: Validator = mkValidator(
   'address',
   invalidAddressError,
-  (val) => typeof val === 'string'
+  (val) => typeof val === 'string',
 );
 
 export const validateAccountID: Validator = mkValidator(
   'accountId',
   invalidAccountIDError,
   (val) => typeof val === 'string',
-  true
+  true,
 );
 
 export const validateMessage: Validator = mkValidator(
   'message',
   invalidMessageError,
   (val) => typeof val === 'string',
-  true
+  true,
 );
 
 export const validateAddWalletRequest: RequestValidator = mkRequestValidator([
@@ -214,7 +235,7 @@ export const validateAddWalletRequest: RequestValidator = mkRequestValidator([
 ]);
 
 export const validateRemoveWalletRequest: RequestValidator = mkRequestValidator(
-  [validateAddress, validateChain]
+  [validateAddress, validateChain],
 );
 
 export const validateWalletSignRequest: RequestValidator = mkRequestValidator([
