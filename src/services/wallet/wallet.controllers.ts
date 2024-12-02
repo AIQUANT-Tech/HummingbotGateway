@@ -162,10 +162,8 @@ export async function addWallet(
       const wallet = await connection.getWalletFromPrivateKey(req.privateKey); // Await the promise
       address = wallet.address; // Access the address property
       // encryptedPrivateKey = await connection.encrypt(req.privateKey, passphrase);
-      encryptedPrivateKey = await connection.encrypt(req.privateKey);
+      encryptedPrivateKey = await connection.encrypt(req.privateKey, passphrase);
     }
-
-
 
     if (address === undefined || encryptedPrivateKey === undefined) {
       throw new Error('ERROR_RETRIEVING_WALLET_ADDRESS_ERROR_CODE');
