@@ -12,6 +12,7 @@ interface Config {
   ttl: string;
   defaultPoolId: string;
   defaultAddress: string;
+  nativeCurrencySymbol: string;
 }
 
 export function getCardanoConfig(
@@ -44,6 +45,9 @@ export function getCardanoConfig(
     ),
     ttl: ConfigManagerV2.getInstance().get(
       chainName + '.ttl'
-    )
+    ),
+    nativeCurrencySymbol: ConfigManagerV2.getInstance().get(
+      chainName + '.nativeCurrencySymbol'
+    ),
   };
 }

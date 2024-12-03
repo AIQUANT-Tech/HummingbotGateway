@@ -21,6 +21,7 @@ import {
 } from '../services/connection-manager';
 import { Osmosis } from '../chains/osmosis/osmosis';
 import { XRPL } from '../chains/xrpl/xrpl';
+import { Cardano } from '../chains/cardano/cardano';
 
 export async function getStatus(
   req: StatusRequest
@@ -114,6 +115,11 @@ export async function getStatus(
     connections = connections.concat(
       osmosisConnections ? Object.values(osmosisConnections) : []
     );
+
+    const cardanoConnections = Cardano.getConnectedInstances();
+    connections = connections.concat(
+      cardanoConnections ? Object.values(cardanoConnections) : []
+    );
   }
 
   for (const connection of connections) {
@@ -122,6 +128,7 @@ export async function getStatus(
     network = connection.network;
     rpcUrl = connection.rpcUrl;
     nativeCurrency = connection.nativeTokenSymbol;
+    console.log("connection", connection);
 
     try {
       currentBlockNumber = await connection.getCurrentBlockNumber();

@@ -11,8 +11,13 @@ export class CardanoController {
 
         const balances: Record<string, string> = {};
 
-        if (request.tokenSymbols.includes(chain.nativeTokenSymbol)) {
-            balances[chain.nativeTokenSymbol] = await chain.getNativeBalance(wallet.privateKey);
+        // if (request.tokenSymbols.includes(chain.nativeTokenSymbol)) {
+        //     balances[chain.nativeTokenSymbol] = await chain.getNativeBalance();
+        // }
+
+        for (const token of request.tokenSymbols) {
+            if (token === chain.nativeTokenSymbol) continue;
+            balances[token] = await chain.getAssetBalance(wallet.privateKey);
         }
 
         return { balances };

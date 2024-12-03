@@ -4,6 +4,7 @@
   "properties": {
     "allowedSlippage": { "type": "string" },
     "blockfrostProjectId": { "type": "string" },
+    "nativeCurrencySymbol": { "type": "string" },
     "preprodBlockfrostProjectId": { "type": "string" },
     "defaultPoolId": {
       "type": "object",
@@ -44,6 +45,7 @@
     "contractAddresses",
     "defaultPoolId",
     "defaultAddress",
-    "preprodBlockfrostProjectId"
+    "preprodBlockfrostProjectId",
+    "nativeCurrencySymbol"
   ]
 }

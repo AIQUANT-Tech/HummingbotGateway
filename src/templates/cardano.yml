@@ -5,6 +5,7 @@ allowedSlippage: '1/100'
 blockfrostProjectId: 'mainnettestprojectidforrefKvhwjlnqH3YBbFvzp'
 
 preprodBlockfrostProjectId: 'preprodN1EZYj11zL89jJeaAjeRybxYMLp7grmn'
+nativeCurrencySymbol: 'MIN'
 
 # how long a trade is valid in seconds. 
 ttl: 300
@@ -26,3 +27,5 @@ contractAddresses:
       apiurl: 'https://cardano-mainnet.blockfrost.io/api/v0'
   preprod:
       apiurl: 'https://cardano-preprod.blockfrost.io/api/v0'
+
+

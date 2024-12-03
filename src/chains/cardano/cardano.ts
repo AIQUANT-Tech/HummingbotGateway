@@ -39,7 +39,7 @@ export class Cardano {
     this.apiURL = config.network.apiurl;
     this.defaultPoolId = config.defaultPoolId;
     this.network = config.network.name;
-    this.nativeTokenSymbol = "ADA";
+    this.nativeTokenSymbol = config.nativeCurrencySymbol;
     this.controller = CardanoController;
   }
   public static getInstance(network: string): Cardano {
@@ -121,7 +121,7 @@ export class Cardano {
     return { privateKey }; // Correctly resolved the Promise<string> to string
   }
 
-  public async getNativeBalance(privateKey: string): Promise<string> {
+  public async getAssetBalance(privateKey: string): Promise<string> {
     const Lucid = this.getLucid();
     const wallet = Lucid.selectWalletFromPrivateKey(privateKey);
 
@@ -186,6 +186,24 @@ export class Cardano {
     ]);
 
     return decrpyted.toString();
+  }
+
+  async getCurrentBlockNumber(): Promise<number> {
+    const response = await fetch(
+      `${this.apiURL}/blocks/latest`,
+      {
+        headers: {
+          project_id: this.blockfrostProjectId,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Error fetching latest block: ${response.statusText}`);
+    }
+
+    const latestBlock = await response.json();
+    return latestBlock.height;
   }
 
 }
