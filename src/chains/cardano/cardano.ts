@@ -21,6 +21,8 @@ export class Cardano {
   public apiURL: any;
   public defaultPoolId: string;
   public nativeTokenSymbol: string;
+  public policyId: string;
+  public assetName: string;
   public controller: typeof CardanoController;
 
   private constructor(network: string) {
@@ -40,6 +42,9 @@ export class Cardano {
     this.defaultPoolId = config.defaultPoolId;
     this.network = config.network.name;
     this.nativeTokenSymbol = config.nativeCurrencySymbol;
+    // make it dynamic in future
+    this.policyId = network == "preprod" ? "e16c2dc8ae937e8d3790c7fd7168d7b994621ba14ca11415f39fed72" : "29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c6";
+    this.assetName = "4d494e";
     this.controller = CardanoController;
   }
   public static getInstance(network: string): Cardano {
@@ -121,7 +126,7 @@ export class Cardano {
     return { privateKey }; // Correctly resolved the Promise<string> to string
   }
 
-  public async getAssetBalance(privateKey: string): Promise<string> {
+  public async getNativeBalance(privateKey: string): Promise<string> {
     const Lucid = this.getLucid();
     const wallet = Lucid.selectWalletFromPrivateKey(privateKey);
 
@@ -141,6 +146,25 @@ export class Cardano {
     const balanceInADA = Number(totalLovelace) / 1_000_000;
 
     return balanceInADA.toString();
+  }
+  // getNativeBalance
+  async getAssetBalance(privateKey: string): Promise<string> {
+    const Lucid = this.getLucid();
+    const wallet = Lucid.selectWalletFromPrivateKey(privateKey);
+
+    // Get wallet address
+    const address = await Lucid.wallet.address();
+    // Fetch UTXOs at the wallet's address
+    const utxos = await Lucid.utxosAt(address);
+
+    const calculatetokenBalance = utxos.reduce((acc, utxo) => {
+      const asset = utxo.assets[this.policyId + this.assetName];
+      if (asset) {
+        return acc + Number(asset);
+      }
+      return acc;
+    }, 0);
+    return calculatetokenBalance.toString();
   }
 
   async encrypt(secret: string, password: string): Promise<string> {
@@ -205,5 +229,27 @@ export class Cardano {
     const latestBlock = await response.json();
     return latestBlock.height;
   }
+
+  public async getTransaction(txHash: string): Promise<Object> {
+
+    // Fetch transaction details from Blockfrost
+    const response = await fetch(`${this.apiURL}/txs/${txHash}`, {
+      method: "GET",
+      headers: {
+        project_id: this.blockfrostProjectId, // Pass project ID in the header
+      },
+    });
+
+    // Check if the response is successful
+    if (!response.ok) {
+      throw new Error(`Failed to fetch transaction: ${response.statusText}`);
+    }
+
+    // Parse the response JSON
+    const tx = await response.json();
+    console.log("Transaction Details:", tx);
+
+    return tx;
+  };
 
 }
