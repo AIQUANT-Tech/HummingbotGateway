@@ -35,17 +35,52 @@
         }
       },
       "additionalProperties": false
+    },
+    "networks": {
+      "type": "object",
+      "properties": {
+        "mainnet": {
+          "type": "object",
+          "properties": {
+            "tokenListType": { "type": "string" },
+            "tokenListSource": { "type": "string" },
+            "nativeCurrencySymbol": { "type": "string" }
+          },
+          "required": [
+            "tokenListType",
+            "tokenListSource",
+            "nativeCurrencySymbol"
+          ],
+          "additionalProperties": false
+        },
+        "preprod": {
+          "type": "object",
+          "properties": {
+            "tokenListType": { "type": "string" },
+            "tokenListSource": { "type": "string" },
+            "nativeCurrencySymbol": { "type": "string" }
+          },
+          "required": [
+            "tokenListType",
+            "tokenListSource",
+            "nativeCurrencySymbol"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["mainnet", "preprod"],
+      "additionalProperties": false
     }
   },
   "additionalProperties": false,
   "required": [
     "allowedSlippage",
     "blockfrostProjectId",
+    "preprodBlockfrostProjectId",
     "ttl",
-    "contractAddresses",
     "defaultPoolId",
     "defaultAddress",
-    "preprodBlockfrostProjectId",
-    "nativeCurrencySymbol"
+    "contractAddresses",
+    "networks"
   ]
 }

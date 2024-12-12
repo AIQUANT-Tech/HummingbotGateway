@@ -13,6 +13,8 @@ interface Config {
   defaultPoolId: string;
   defaultAddress: string;
   nativeCurrencySymbol: string;
+  tokenListType: string; // default: FILE
+  tokenListSource: string; // default: src/chains/cardano/cardano_tokens.json
 }
 
 export function getCardanoConfig(
@@ -47,7 +49,13 @@ export function getCardanoConfig(
       chainName + '.ttl'
     ),
     nativeCurrencySymbol: ConfigManagerV2.getInstance().get(
-      chainName + '.nativeCurrencySymbol'
+      chainName + '.networks.' + networkName + '.nativeCurrencySymbol'
+    ),
+    tokenListType: ConfigManagerV2.getInstance().get(
+      chainName + '.networks.' + networkName + '.tokenListType'
+    ),
+    tokenListSource: ConfigManagerV2.getInstance().get(
+      chainName + '.networks.' + networkName + '.tokenListSource'
     ),
   };
 }

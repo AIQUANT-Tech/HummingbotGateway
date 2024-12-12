@@ -2,14 +2,27 @@ import { getCardanoConfig } from "./cardano.config";
 import { Lucid, Blockfrost, C } from "lucid-cardano";
 import { TokenListType, walletPath } from '../../services/base';
 import { ConfigManagerCertPassphrase } from '../../services/config-manager-cert-passphrase';
+import { promises as fs } from 'fs';
 import fse from 'fs-extra';
 import crypto from 'crypto';
 import { CardanoController } from "./cardano.controller";
 
 //import { Cardanoish } from "../../services/common-interfaces";
+export type CardanoTokenInfo = {
+  policyId: string,
+  assetName: string,
+  decimals: number,
+  name: string,
+  symbol: string,
+  logoURI: string
+};
 
 export class Cardano {
   private static _instances: { [name: string]: Cardano };
+  protected tokenList: CardanoTokenInfo[] = [];
+  private _tokenMap: Record<string, CardanoTokenInfo[]> = {};
+  private _tokenListSource: string;
+  private _tokenListType: TokenListType;
   private static lucidInstance: Lucid | null = null;
   private network: string;
   public allowedSlippage?: string;
@@ -21,8 +34,6 @@ export class Cardano {
   public apiURL: any;
   public defaultPoolId: string;
   public nativeTokenSymbol: string;
-  public policyId: string;
-  public assetName: string;
   public controller: typeof CardanoController;
 
   private constructor(network: string) {
@@ -42,10 +53,9 @@ export class Cardano {
     this.defaultPoolId = config.defaultPoolId;
     this.network = config.network.name;
     this.nativeTokenSymbol = config.nativeCurrencySymbol;
-    // make it dynamic in future
-    this.policyId = network == "preprod" ? "e16c2dc8ae937e8d3790c7fd7168d7b994621ba14ca11415f39fed72" : "29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c6";
-    this.assetName = "4d494e";
     this.controller = CardanoController;
+    this._tokenListSource = config.tokenListSource;
+    this._tokenListType = <TokenListType>config.tokenListType;
   }
   public static getInstance(network: string): Cardano {
     if (Cardano._instances === undefined) {
@@ -77,7 +87,10 @@ export class Cardano {
         this.network === "preprod" ? "Preprod" : "Mainnet"
       );
     }
-    this._ready = true;
+    if (!this.ready()) {
+      this._ready = true;
+      await this.loadTokens(this._tokenListSource);
+    }
     return;
   }
 
@@ -134,7 +147,7 @@ export class Cardano {
     const address = await Lucid.wallet.address();
     // Fetch UTXOs at the wallet's address
     const utxos = await Lucid.utxosAt(address);
-    console.log("UTXOs:", utxos);
+    // console.log("UTXOs:", utxos);
 
     // Calculate total balance in ADA using BigInt
     const totalLovelace = utxos.reduce(
@@ -148,7 +161,13 @@ export class Cardano {
     return balanceInADA.toString();
   }
   // getNativeBalance
-  async getAssetBalance(privateKey: string): Promise<string> {
+  async getAssetBalance(privateKey: string, token: string): Promise<string> {
+    let tokenAdress: string;
+    let tokenInfo = this.getTokenForSymbol(token);
+    if (tokenInfo) {
+      tokenAdress = tokenInfo[0].policyId + tokenInfo[0].assetName;
+    }
+    console.log("tokenInfo", tokenInfo);
     const Lucid = this.getLucid();
     const wallet = Lucid.selectWalletFromPrivateKey(privateKey);
 
@@ -156,15 +175,14 @@ export class Cardano {
     const address = await Lucid.wallet.address();
     // Fetch UTXOs at the wallet's address
     const utxos = await Lucid.utxosAt(address);
-
-    const calculatetokenBalance = utxos.reduce((acc, utxo) => {
-      const asset = utxo.assets[this.policyId + this.assetName];
-      if (asset) {
-        return acc + Number(asset);
+    const calculatedtokenBalance = utxos.reduce((acc, utxo) => {
+      if (utxo.assets[tokenAdress]) {
+        return acc + Number(utxo.assets[tokenAdress]);
       }
       return acc;
     }, 0);
-    return calculatetokenBalance.toString();
+
+    return calculatedtokenBalance.toString();
   }
 
   async encrypt(secret: string, password: string): Promise<string> {
@@ -247,9 +265,39 @@ export class Cardano {
 
     // Parse the response JSON
     const tx = await response.json();
-    console.log("Transaction Details:", tx);
+    // console.log("Transaction Details:", tx);
 
     return tx;
   };
+
+  async loadTokens(
+    tokenListSource: string,
+  ): Promise<void> {
+    this.tokenList = await this.getTokenList(tokenListSource);
+    if (this.tokenList) {
+      this.tokenList.forEach((token: CardanoTokenInfo) => {
+        if (!this._tokenMap[token.symbol]) {
+          this._tokenMap[token.symbol] = [];
+        }
+
+        this._tokenMap[token.symbol].push(token);
+      });
+    }
+  }
+
+  async getTokenList(
+    tokenListSource: string
+  ): Promise<CardanoTokenInfo[]> {
+    let tokenList = JSON.parse(await fs.readFile(tokenListSource, 'utf8'));
+    return tokenList.tokens;
+  }
+
+  public get storedTokenList(): CardanoTokenInfo[] {
+    return this.tokenList;
+  }
+
+  public getTokenForSymbol(symbol: string): CardanoTokenInfo[] | undefined {
+    return this._tokenMap[symbol] ? this._tokenMap[symbol] : undefined;
+  }
 
 }

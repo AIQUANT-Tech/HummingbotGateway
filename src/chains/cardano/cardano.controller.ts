@@ -1,4 +1,4 @@
-import { Cardano } from './cardano';
+import { Cardano, CardanoTokenInfo } from './cardano';
 import { BalanceRequest } from '../../network/network.requests';
 import { validateCardanoBalanceRequest, validateAssetsRequest, validateCardanoPollRequest } from './cardano.validators';
 import {
@@ -7,7 +7,10 @@ import {
     AssetsResponse,
     // OptInRequest,
     PollRequest,
+    getNetworkId
 } from './cardano.requests';
+import { TokensRequest } from '../../network/network.requests';
+import { TokenInfo } from '../../services/base';
 export class CardanoController {
 
     static async poll(
@@ -33,7 +36,7 @@ export class CardanoController {
 
         for (const token of request.tokenSymbols) {
             if (token === chain.nativeTokenSymbol) continue;
-            balances[token] = await chain.getAssetBalance(wallet.privateKey);
+            balances[token] = await chain.getAssetBalance(wallet.privateKey, token);
         }
 
         return { balances };
@@ -41,16 +44,39 @@ export class CardanoController {
 
     static async getTokens(
         cardano: Cardano,
-        request: AssetsRequest
-    ): Promise<AssetsResponse> {
+        request: TokensRequest
+    ): Promise<{ tokens: TokenInfo[] }> {
+        console.log(request);
+        console.log(cardano);
+        let cardanoTokens: CardanoTokenInfo[] = [];
         validateAssetsRequest(request);
+        if (!request.tokenSymbols) {
+            cardanoTokens = cardano.storedTokenList;
+        } else {
+            for (const t of request.tokenSymbols as []) {
+                const arr = cardano.getTokenForSymbol(t);
+                if (arr !== undefined) {
+                    arr.forEach((token) => {
+                        cardanoTokens.push(token);
+                    });
+                }
+            }
+        }
+        const tokens: TokenInfo[] = [];
 
-        let assets: CardanoAsset[] = [];
-        console.log("cardano ", cardano);
-        console.log("request ", request);
-        console.log("request.tokenSymbols ", request.tokenSymbols);
-        return {
-            assets: assets,
-        };
+        // Convert xrpTokens into tokens
+        cardanoTokens.map((cardanoToken) => {
+            const token: TokenInfo = {
+                address: cardanoToken.policyId + cardanoToken.assetName,
+                chainId: getNetworkId(request.network),
+                decimals: 6,
+                name: cardanoToken.name,
+                symbol: cardanoToken.symbol,
+            };
+            tokens.push(token);
+        });
+
+        return { tokens };
     }
+
 }

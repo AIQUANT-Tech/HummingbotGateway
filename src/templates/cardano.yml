@@ -5,7 +5,6 @@ allowedSlippage: '1/100'
 blockfrostProjectId: 'mainnettestprojectidforrefKvhwjlnqH3YBbFvzp'
 
 preprodBlockfrostProjectId: 'preprodN1EZYj11zL89jJeaAjeRybxYMLp7grmn'
-nativeCurrencySymbol: 'ADA'
 
 # how long a trade is valid in seconds. 
 ttl: 300
@@ -28,4 +27,14 @@ contractAddresses:
   preprod:
       apiurl: 'https://cardano-preprod.blockfrost.io/api/v0'
 
+
+networks:
+  mainnet:
+    tokenListType: "FILE"
+    tokenListSource: "/home/gateway/conf/lists/cardano_mainnet_tokens.json"
+    nativeCurrencySymbol: 'ADA'
+  preprod:
+    tokenListType: "FILE"
+    tokenListSource: "/home/gateway/conf/lists/cardano_preprod_tokens.json"
+    nativeCurrencySymbol: 'ADA'
 

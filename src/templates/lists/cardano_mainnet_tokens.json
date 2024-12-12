@@ -1,0 +1,16 @@
+{
+  "name": "Cardano Tokenlist",
+  "logoURI": "https://ibb.co/N1Jmswk",
+  "keywords": ["cardano", "tokens", "MIN"],
+  "timestamp": "2024-12-12T12:00:00+00:00",
+  "tokens": [
+    {
+      "policyId": "29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c6",
+      "assetName": "4d494e",
+      "decimals": 6,
+      "name": "Minswap Token",
+      "symbol": "MIN",
+      "logoURI": "https://ibb.co/L1Tp0rQ"
+    }
+  ]
+}
