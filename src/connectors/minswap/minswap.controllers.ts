@@ -39,6 +39,8 @@ import {
   OutRef,
 } from 'lucid-cardano';
 
+
+
 interface InitialResponse {
   network: Network;
   ttl: string;
@@ -132,17 +134,20 @@ async function initializeTrade(
   });
 
   let address = req.address;
-  let seedphrase = '';
-  if (req.seedPhrase) {
-    seedphrase = req.seedPhrase;
-  }
+  // let seedphrase = '';
+  // if (req.seedPhrase) {
+  //   seedphrase = req.seedPhrase;
+  // }
+
+  const wallet = await cardanoish.getWalletFromAddress(req.address);
 
   const lucid = await getBackendLucidInstance(
     network,
     blockfrostProjectId,
     blockfrostUrl,
-    req.address,
-    seedphrase,
+    wallet.privateKey
+    // req.address,
+    // seedphrase,
   );
 
   return {
@@ -172,6 +177,7 @@ export async function price(
   req: PriceRequest,
 ): Promise<PriceResponse> {
   const startTimestamp: number = Date.now();
+  let tradeInfo;
   console.log(
     'MY connector MinSwap is reached---------------',
     minSwap,
@@ -188,8 +194,10 @@ export async function price(
     api,
     poolidentifier,
   );
-
+  console.log(returnedPool.poolState)
   const [a, b] = await api.getV1PoolPrice({ pool: returnedPool.poolState });
+
+
   console.log(`ADA/MIN price: ${a.toString()}; MIN/ADA price: ${b.toString()}`);
 
   /** here a is ADA/MIN and b is  MIN/ADA*/
@@ -237,12 +245,18 @@ export async function price(
   totalValue = amountToSpend * conversionFactor;
   expectedAmount = totalValue.toFixed(2).toString();
 
+  const baseToken =
+    cardanoish.getTokenAddress(req.base);
+  const quoteToken = cardanoish.getTokenAddress(req.quote);
+
   return {
     network: req.network,
     timestamp: startTimestamp,
     latency: latency(startTimestamp, Date.now()),
-    base: req.base,
-    quote: req.quote,
+    base: baseToken,
+    quote: quoteToken,
+    // base: req.base,
+    // quote: req.quote,
     amount: new Decimal(req.amount).toFixed(2).toString(),
     rawAmount: expectedAmount,
     expectedAmount: expectedAmount,
@@ -293,6 +307,12 @@ export async function trade(
   }
 
   const utxos = await initialTradeVal.lucid.utxosAt(req.address);
+  // console.log(utxos);
+  if (req.side === 'BUY') {
+    console.log('BUY Trade: Base:', req.base, 'Quote:', req.quote);
+  } else if (req.side === 'SELL') {
+    console.log('SELL Trade: Base:', req.base, 'Quote:', req.quote);
+  }
 
   let txnId = '';
   if (req.side == 'SELL') {
@@ -316,7 +336,7 @@ export async function trade(
       initialTradeVal,
     );
   }
-
+  // console.log(txnId);
   return {
     network: req.network,
     timestamp: startTimestamp,
@@ -370,8 +390,7 @@ export async function removeLiquidity(
     network,
     blockfrostProjectId,
     blockfrostUrl,
-    req.address,
-    seedphrase,
+    req.address
   );
   const utxos = await lucid.utxosAt(req.address);
 
@@ -436,8 +455,7 @@ export async function addLiquidity(
     network,
     blockfrostProjectId,
     blockfrostUrl,
-    req.address,
-    seedphrase,
+    req.address
   );
 
   const utxos = await lucid.utxosAt(req.address);
@@ -478,16 +496,20 @@ async function getBackendLucidInstance(
   network: Network,
   projectId: string,
   blockfrostUrl: string,
-  address: Address,
-  seedPhrase: string,
+  privateKey: string
+  // address: Address,
+  // seedPhrase: string,
 ): Promise<Lucid> {
   const provider = new Blockfrost(blockfrostUrl, projectId);
   const lucid = await Lucid.new(provider, network);
 
-  console.log('address:::', address);
-  lucid.selectWalletFromSeed(seedPhrase); //in the adrdress field we actually need to get the seed phrase to identify the wallet
+  // console.log('address:::', address);
+  //in the adrdress field we actually need to get the seed phrase to identify the wallet
+  // lucid.selectWalletFromSeed(seedPhrase); 
+  lucid.selectWalletFromPrivateKey(privateKey);
   return lucid;
 }
+
 async function getPoolById(
   network: Network,
   blockfrostAdapter: BlockfrostAdapter,
@@ -527,30 +549,38 @@ async function swapExactInTx(
     blockfrostAdapter,
     poolId,
   );
+  console.log('poolState:::', poolState);
+  console.log('poolDatum:::', poolDatum);
 
-  /*
-  BUY : acquire particular base by selling quote  calculateSwapExactOut
-SELL : sell particular base to acquire quote  calculateSwapExactIn
-*/
-  const swapAmountADA = BigInt(req.amount)*BigInt(1000000);
+  // Calculate the amount of ADA to swap
+  const swapAmountADA = BigInt(Math.floor(Number(req.amount) * 1_000_000)); // Convert ADA to lovelace
+  console.log('swapAmountADA:', swapAmountADA);
 
+  // Calculate the amount of MIN received
   const { amountOut } = calculateSwapExactIn({
-    amountIn: swapAmountADA, //exact amount of input tokens that the user wants to swap
-    reserveIn: poolState.reserveA, //total amount of the input token currently available in the liquidity pool
-    reserveOut: poolState.reserveB, //total amount of the output token currently available in the liquidity pool
+    amountIn: swapAmountADA,
+    reserveIn: poolState.reserveA, // ADA reserve
+    reserveOut: poolState.reserveB, // MIN reserve
   });
 
-  // Because pool is always fluctuating, so you should determine the impact of amount which you will receive
-  const slippageTolerance = BigInt(initialTradeVal.slippage);
+  // Adjust for slippage
+  const slippageTolerance = BigInt(initialTradeVal.slippage || 0);
   const acceptedAmount =
     (amountOut * (BigInt(100) - slippageTolerance)) / BigInt(100);
+
+  console.log('AmountOut:', amountOut.toString(), 'AcceptedAmount:', acceptedAmount.toString());
+
+  // Ensure sufficient MIN tokens are being exchanged for the given ADA
+  if (acceptedAmount === BigInt(0)) {
+    throw new Error('Insufficient output amount for the given input.');
+  }
 
   const dex = new Dex(lucid);
 
   const txComplete = await dex.buildSwapExactInTx({
     amountIn: swapAmountADA,
     assetIn: ADA,
-    assetOut: poolDatum.assetB,
+    assetOut: poolDatum.assetB, // MIN asset
     minimumAmountOut: acceptedAmount,
     isLimitOrder: false,
     sender: req.address,
@@ -561,6 +591,7 @@ SELL : sell particular base to acquire quote  calculateSwapExactIn
 
   return transactionId;
 }
+
 
 async function depositTx(
   network: Network,
@@ -672,30 +703,35 @@ async function swapExactOutTx(
     blockfrostAdapter,
     poolId,
   );
+  console.log("Swap Exact out transaction called");
+  console.log('Pool State:', poolState);
+  console.log('Pool Datum:', poolDatum);
 
-  /*  swap MIN to get ADA base: ADA , quote : MIN
+  // Parse the requested amount (exact ADA to receive)
+  const amount: number = Number(req.amount);
+  const exactAmountOutADA = BigInt(Math.floor(amount * 1_000_000)); // Convert ADA to Lovelace
 
-*/
-  const exactAmountOutADA = BigInt(req.amount) * BigInt(1000000);
-
+  // Calculate MIN required to get the exact ADA
   const { amountIn } = calculateSwapExactOut({
-    exactAmountOut: exactAmountOutADA,
-    reserveIn: poolState.reserveA,
-    reserveOut: poolState.reserveB,
+    exactAmountOut: exactAmountOutADA, // ADA you want to receive
+    reserveIn: poolState.reserveB, // MIN available in the pool
+    reserveOut: poolState.reserveA, // ADA available in the pool
   });
 
-  // Because pool is always fluctuating, so you should determine the impact of amount which you will receive
-  const slippageTolerance = BigInt(initialTradeVal.slippage);
+  const slippageTolerance = BigInt(initialTradeVal.slippage || 1); // Set default slippage to 1%
   const necessaryAmountIn =
-    (amountIn * (BigInt(100) - slippageTolerance)) / BigInt(100);
+    (amountIn * (BigInt(100) + slippageTolerance)) / BigInt(100); // Add slippage
+
+  console.log('Necessary MIN Input:', necessaryAmountIn.toString());
+  console.log('Expected ADA Output:', exactAmountOutADA.toString());
 
   const dex = new Dex(lucid);
 
   const txComplete = await dex.buildSwapExactOutTx({
-    maximumAmountIn: necessaryAmountIn,
-    assetIn: ADA,
-    assetOut: poolDatum.assetB,
-    expectedAmountOut: exactAmountOutADA,
+    maximumAmountIn: necessaryAmountIn, // Maximum MIN to spend
+    assetIn: poolDatum.assetB, // MIN
+    assetOut: ADA, // ADA
+    expectedAmountOut: exactAmountOutADA, // ADA to receive
     sender: req.address,
     availableUtxos: availableUtxos,
   });
@@ -704,6 +740,7 @@ async function swapExactOutTx(
 
   return transactionId;
 }
+
 
 async function cancelTx(
   lucid: Lucid,

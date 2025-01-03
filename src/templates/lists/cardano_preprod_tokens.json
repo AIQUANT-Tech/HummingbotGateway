@@ -11,6 +11,14 @@
       "name": "Minswap Token",
       "symbol": "MIN",
       "logoURI": "https://ibb.co/L1Tp0rQ"
+    },
+    {
+      "policyId": "",
+      "assetName": "lovelace",
+      "decimals": 6,
+      "name": "Cardano Native Token",
+      "symbol": "ADA",
+      "logoURI": "https://ibb.co/N1Jmswk"
     }
   ]
 }

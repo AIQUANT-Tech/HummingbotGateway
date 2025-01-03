@@ -147,7 +147,6 @@ export class Cardano {
     const address = await Lucid.wallet.address();
     // Fetch UTXOs at the wallet's address
     const utxos = await Lucid.utxosAt(address);
-    // console.log("UTXOs:", utxos);
 
     // Calculate total balance in ADA using BigInt
     const totalLovelace = utxos.reduce(
@@ -167,7 +166,6 @@ export class Cardano {
     if (tokenInfo) {
       tokenAdress = tokenInfo[0].policyId + tokenInfo[0].assetName;
     }
-    console.log("tokenInfo", tokenInfo);
     const Lucid = this.getLucid();
     const wallet = Lucid.selectWalletFromPrivateKey(privateKey);
 
@@ -249,26 +247,38 @@ export class Cardano {
   }
 
   public async getTransaction(txHash: string): Promise<Object> {
+    try {
+      // Fetch transaction details from Blockfrost
+      const response = await fetch(`${this.apiURL}/txs/${txHash}`, {
+        method: "GET",
+        headers: {
+          project_id: this.blockfrostProjectId, // Pass project ID in the header
+        },
+      });
 
-    // Fetch transaction details from Blockfrost
-    const response = await fetch(`${this.apiURL}/txs/${txHash}`, {
-      method: "GET",
-      headers: {
-        project_id: this.blockfrostProjectId, // Pass project ID in the header
-      },
-    });
+      // Check if the response is successful
+      if (!response.ok) {
+        throw new Error(`Failed to fetch transaction: ${response.statusText}`);
+      }
 
-    // Check if the response is successful
-    if (!response.ok) {
-      throw new Error(`Failed to fetch transaction: ${response.statusText}`);
+      // Parse the response JSON
+      const tx = await response.json();
+
+      // Simplify the response for the bot
+      return {
+        txHash: tx.hash,
+        block: tx.block,
+        blockHeight: tx.block_height,
+        blockTime: tx.block_time,
+        fees: tx.fees,
+        validContract: tx.valid_contract,
+        status: tx.block ? "confirmed" : "pending", // Simplified status
+      };
+    } catch (error) {
+      console.error(`Error fetching transaction: ${error}`);
+      throw error;
     }
-
-    // Parse the response JSON
-    const tx = await response.json();
-    // console.log("Transaction Details:", tx);
-
-    return tx;
-  };
+  }
 
   async loadTokens(
     tokenListSource: string,
@@ -299,5 +309,15 @@ export class Cardano {
   public getTokenForSymbol(symbol: string): CardanoTokenInfo[] | undefined {
     return this._tokenMap[symbol] ? this._tokenMap[symbol] : undefined;
   }
+
+  public getTokenAddress(symbol: string): string {
+    let tokenAddress: string = "";
+    let tokenInfo = this.getTokenForSymbol(symbol);
+    if (tokenInfo) {
+      tokenAddress = tokenInfo[0].policyId + tokenInfo[0].assetName;
+    }
+    return tokenAddress;
+  }
+
 
 }
