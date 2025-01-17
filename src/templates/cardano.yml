@@ -2,7 +2,7 @@
 allowedSlippage: '1/100'
 
 # For Cardano this will be used to connect to the network via blockfrost API
-blockfrostProjectId: 'mainnettestprojectidforrefKvhwjlnqH3YBbFvzp'
+blockfrostProjectId: 'mainnetkCD2MvERTpHuh2oojUli0QtGp6zuJyrR'
 
 preprodBlockfrostProjectId: 'preprodN1EZYj11zL89jJeaAjeRybxYMLp7grmn'
 

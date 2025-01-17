@@ -81,6 +81,9 @@ export class Cardano {
   }
 
   public async init(): Promise<void> {
+    console.log("apiurl", this.apiURL);
+    console.log("blockfrostProjectId", this.blockfrostProjectId);
+
     if (!Cardano.lucidInstance) {
       Cardano.lucidInstance = await Lucid.new(
         new Blockfrost(this.apiURL, this.blockfrostProjectId),

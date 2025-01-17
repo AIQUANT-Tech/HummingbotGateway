@@ -11,7 +11,10 @@ import {
   AddLiquidityResponse,
   RemoveLiquidityRequest,
   RemoveLiquidityResponse,
+  PoolPriceRequest,
+  PoolPriceResponse,
 } from '../../amm/amm.requests';
+
 import Decimal from 'decimal.js-light';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import {
@@ -39,7 +42,11 @@ import {
   OutRef,
 } from 'lucid-cardano';
 
-
+import {
+  HttpException,
+  TOKEN_NOT_SUPPORTED_ERROR_CODE,
+  TOKEN_NOT_SUPPORTED_ERROR_MESSAGE,
+} from '../../services/error-handler';
 
 interface InitialResponse {
   network: Network;
@@ -116,7 +123,7 @@ async function initializeTrade(
   const blockfrostProjectId = cardanoish.blockfrostProjectId;
 
   const ttl: any = cardanoish.ttl;
-  const slippage: any = 0;//cardanoish.allowedSlippage;
+  const slippage: any = 0;
   const blockfrostUrl = cardanoish.apiURL;
 
   let poolId = ConfigManagerV2.getInstance().get(
@@ -134,11 +141,6 @@ async function initializeTrade(
   });
 
   let address = req.address;
-  // let seedphrase = '';
-  // if (req.seedPhrase) {
-  //   seedphrase = req.seedPhrase;
-  // }
-
   const wallet = await cardanoish.getWalletFromAddress(req.address);
 
   const lucid = await getBackendLucidInstance(
@@ -146,8 +148,6 @@ async function initializeTrade(
     blockfrostProjectId,
     blockfrostUrl,
     wallet.privateKey
-    // req.address,
-    // seedphrase,
   );
 
   return {
@@ -356,6 +356,193 @@ export async function trade(
   };
 }
 
+export async function poolPrice(cardano: Cardano,
+  req: PoolPriceRequest): Promise<PoolPriceResponse> {
+  const startTimestamp: number = Date.now();
+  const reqNetwork: any = req.network;
+
+  let network: any = 'Preprod';
+  let networkId = 0;
+  if (reqNetwork == 'mainnet') {
+    networkId = 1;
+    network = 'Mainnet';
+  }
+  const blockfrostProjectId = cardano.blockfrostProjectId;
+
+  let blockfrostAdapterInstance = new BlockfrostAdapter({
+    networkId: networkId,
+    blockFrost: new BlockFrostAPI({
+      projectId: blockfrostProjectId,
+      network: reqNetwork,
+    }),
+  });
+
+  let poolId = ConfigManagerV2.getInstance().get(
+    `cardano.defaultPoolId.${req.network}.poolId`,
+  );
+
+  // console.log("working upto here");
+
+  const { poolState } = await getPoolById(
+    network,
+    blockfrostAdapterInstance,
+    poolId,
+  );
+
+  const [priceA, priceB] = await blockfrostAdapterInstance.getV1PoolPrice({ pool: poolState });
+  console.log(priceA, priceB);
+
+  const token0Address = getTokenAddressFromSymbol(
+    cardano,
+    req.token0
+  );
+
+  const token1Address = getTokenAddressFromSymbol(
+    cardano,
+    req.token1
+  );
+
+  return {
+    network: cardano.chain,
+    timestamp: startTimestamp,
+    latency: latency(startTimestamp, Date.now()),
+    token0: token0Address,
+    token1: token1Address,
+    fee: req.fee,
+    period: req.period,
+    interval: req.interval,
+    prices: [priceA.toString(), priceB.toString()],
+  };
+}
+
+export async function addLiquidity(
+  cardanoish: Cardano,
+  req: AddLiquidityRequest,
+): Promise<AddLiquidityResponse> {
+  const startTimestamp: number = Date.now();
+  const reqNetwork: any = req.network;
+  let network: any = 'Preprod';
+  let networkId = 0;
+  if (reqNetwork == 'mainnet') {
+    networkId = 1;
+    network = 'Mainnet';
+  }
+  const blockfrostProjectId = cardanoish.blockfrostProjectId;
+  const blockfrostUrl = cardanoish.apiURL;
+
+  let blockfrostAdapterInstance = new BlockfrostAdapter({
+    networkId: networkId,
+    blockFrost: new BlockFrostAPI({
+      projectId: blockfrostProjectId,
+      network: reqNetwork,
+    }),
+  });
+
+  let address = req.address;
+  const wallet = await cardanoish.getWalletFromAddress(address);
+  const lucid = await getBackendLucidInstance(
+    network,
+    blockfrostProjectId,
+    blockfrostUrl,
+    wallet.privateKey
+  );
+  const utxos = await lucid.utxosAt(address);
+  console.log("utxos: ", utxos);
+
+  const txComplete = await depositTx(
+    network,
+    lucid,
+    blockfrostAdapterInstance,
+    address,
+    utxos,
+    req,
+  );
+
+  const transactionId = await commitTransaction(txComplete);
+  const token0Address = getTokenAddressFromSymbol(cardanoish, req.token0);
+  const token1Address = getTokenAddressFromSymbol(cardanoish, req.token1);
+
+
+  return {
+    network: req.chain,
+    timestamp: startTimestamp,
+    latency: latency(startTimestamp, Date.now()),
+    token0: token0Address,
+    token1: token1Address,
+    fee: req.fee!,
+    tokenId: req.tokenId ? req.tokenId : 0,
+    gasPrice: 0,
+    gasPriceToken: 'n/a',
+    gasLimit: 0,
+    gasCost: 'n/a',
+    nonce: Math.random(),
+    txHash: transactionId,
+  };
+}
+
+async function depositTx(
+  network: Network,
+  lucid: Lucid,
+  blockfrostAdapter: BlockfrostAdapter,
+  address: Address,
+  availableUtxos: UTxO[],
+  req: AddLiquidityRequest,
+): Promise<TxComplete> {
+  let poolId = ConfigManagerV2.getInstance().get(
+    `cardano.defaultPoolId.${req.network}.poolId`,
+  );
+  if (req.poolId) {
+    poolId = req.poolId;
+  }
+
+  const { poolState, poolDatum } = await getPoolById(
+    network,
+    blockfrostAdapter,
+    poolId,
+  );
+  console.log(poolState);
+
+  // Extract assetA and assetB details from poolDatum
+  const { assetA, assetB } = poolDatum;
+
+  // Ensure deposited amounts are valid and calculate the necessary amounts
+  const amount0 = new Decimal(req.amount0).toFixed(0).toString();
+  const amount1 = new Decimal(req.amount1).toFixed(0).toString();
+  const depositedAmountA = BigInt(amount0) * BigInt(1_000_000);
+  const depositedAmountB = BigInt(amount1);
+  console.log(depositedAmountA);
+  console.log(depositedAmountB);
+
+
+
+  const { necessaryAmountA, necessaryAmountB, lpAmount } = calculateDeposit({
+    depositedAmountA,
+    depositedAmountB,
+    reserveA: poolState.reserveA,
+    reserveB: poolState.reserveB,
+    totalLiquidity: poolDatum.totalLiquidity,
+  });
+  console.log(poolState.reserveA + "!!!!" + poolState.reserveB);
+  console.log(poolDatum.totalLiquidity);
+
+  console.log("necessaryAmountA", necessaryAmountA + " : " + "necessaryAmountB", necessaryAmountB);
+  console.log("assetA: ", assetA);
+  console.log("assetB: ", assetB);
+  console.log("total LP", poolDatum.totalLiquidity);
+
+  // Use Dex object to build deposit transaction
+  const dex = new Dex(lucid);
+  return await dex.buildDepositTx({
+    assetA: assetA,
+    assetB: assetB,
+    amountA: depositedAmountA,
+    amountB: depositedAmountB,
+    minimumLPReceived: lpAmount,
+    sender: address,
+    availableUtxos: availableUtxos,
+  });
+}
+
 export async function removeLiquidity(
   cardanoish: Cardano,
   req: RemoveLiquidityRequest,
@@ -371,7 +558,6 @@ export async function removeLiquidity(
 
   const blockfrostProjectId = cardanoish.blockfrostProjectId;
 
-  const slippage: any = cardanoish.allowedSlippage;
   const blockfrostUrl = cardanoish.apiURL;
 
   let blockfrostAdapterInstance = new BlockfrostAdapter({
@@ -381,27 +567,22 @@ export async function removeLiquidity(
       network: reqNetwork,
     }),
   });
-
-  let seedphrase = '';
-  if (req.seedPhrase) {
-    seedphrase = req.seedPhrase;
-  }
+  let address = req.address;
+  const wallet = await cardanoish.getWalletFromAddress(address);
   const lucid = await getBackendLucidInstance(
     network,
     blockfrostProjectId,
     blockfrostUrl,
-    req.address
+    wallet.privateKey
   );
-  const utxos = await lucid.utxosAt(req.address);
-
+  const utxos = await lucid.utxosAt(address);
   const txComplete = await withdrawTx(
     network,
     lucid,
     blockfrostAdapterInstance,
-    req.address,
+    address,
     utxos,
     req,
-    slippage,
   );
 
   const txId = await commitTransaction(txComplete);
@@ -420,74 +601,77 @@ export async function removeLiquidity(
   };
 }
 
-export async function addLiquidity(
-  cardanoish: Cardano,
-  req: AddLiquidityRequest,
-): Promise<AddLiquidityResponse> {
-  const startTimestamp: number = Date.now();
-  const reqNetwork: any = req.network;
-  let network: any = 'Preprod';
-  let networkId = 0;
-  if (reqNetwork == 'mainnet') {
-    networkId = 1;
-    network = 'Mainnet';
+async function withdrawTx(
+  network: Network,
+  lucid: Lucid,
+  blockfrostAdapter: BlockfrostAdapter,
+  address: Address,
+  availableUtxos: UTxO[],
+  req: RemoveLiquidityRequest,
+): Promise<TxComplete> {
+  // Fetch the default pool ID
+  let poolId = ConfigManagerV2.getInstance().get(
+    `cardano.defaultPoolId.${req.network}.poolId`,
+  );
+
+  // Fetch pool state and datum
+  const { poolState, poolDatum } = await getPoolById(
+    network,
+    blockfrostAdapter,
+    poolId,
+  );
+
+  // Parse LP asset from pool state
+  const lpAsset = Asset.fromString(poolState.assetLP);
+  console.log(lpAsset);
+
+  // Determine withdrawal percentage, defaulting to 100%
+  const withAmt = req.decreasePercent ? req.decreasePercent : 100;
+
+  // Calculate LP amount in the wallet
+  const lpAmountInWallet = calculateAssetAmount(availableUtxos, lpAsset);
+  console.log("lpAmountInWallet:::", lpAmountInWallet);
+
+  if (lpAmountInWallet === 0n) {
+    throw new Error("No LP tokens available in the wallet.");
   }
 
-  const blockfrostProjectId = cardanoish.blockfrostProjectId;
-  //const ttl :any=  cardanoish.ttl;
-  const slippage: any = cardanoish.allowedSlippage;
-  const blockfrostUrl = cardanoish.apiURL;
+  // Calculate withdrawal amount (percentage of LP tokens in the wallet)
+  const withdrawalAmount = (lpAmountInWallet * BigInt(withAmt)) / 100n;
+  if (withdrawalAmount === 0n) {
+    throw new Error("Withdrawal amount is zero. Adjust the percentage or check LP tokens.");
+  }
+  console.log("withdrawalAmount:::", withdrawalAmount);
 
-  let blockfrostAdapterInstance = new BlockfrostAdapter({
-    networkId: networkId,
-    blockFrost: new BlockFrostAPI({
-      projectId: blockfrostProjectId,
-      network: reqNetwork,
-    }),
+  // Calculate the assets to be received upon withdrawal
+  const { amountAReceive, amountBReceive } = calculateWithdraw({
+    withdrawalLPAmount: withdrawalAmount,
+    reserveA: poolState.reserveA,
+    reserveB: poolState.reserveB,
+    totalLiquidity: poolDatum.totalLiquidity,
   });
+  console.log("amountAReceive:::", amountAReceive);
+  console.log("amountBReceive:::", amountBReceive);
 
-  let seedphrase = '';
-  if (req.seedPhrase) {
-    seedphrase = req.seedPhrase;
+  if (amountAReceive <= 0n || amountBReceive <= 0n) {
+    throw new Error("Received amounts are invalid. Check pool reserves or withdrawal amount.");
   }
 
-  const lucid = await getBackendLucidInstance(
-    network,
-    blockfrostProjectId,
-    blockfrostUrl,
-    req.address
-  );
+  console.log("Building withdrawal transaction...");
 
-  const utxos = await lucid.utxosAt(req.address);
-
-  const txComplete = await depositTx(
-    network,
-    lucid,
-    blockfrostAdapterInstance,
-    req.address,
-    utxos,
-    req,
-    slippage,
-  );
-
-  const transactionId = await commitTransaction(txComplete);
-
-  return {
-    network: req.chain,
-    timestamp: startTimestamp,
-    latency: latency(startTimestamp, Date.now()),
-    token0: req.token0,
-    token1: req.token1,
-    fee: req.fee!,
-    tokenId: req.tokenId ? req.tokenId : 0,
-    gasPrice: 0,
-    gasPriceToken: 'n/a',
-    gasLimit: 0,
-    gasCost: 'n/a',
-    nonce: Math.random(),
-    txHash: transactionId,
-  };
+  // Build and return the withdrawal transaction
+  const dex = new Dex(lucid);
+  return await dex.buildWithdrawTx({
+    sender: address,
+    lpAsset: lpAsset,
+    lpAmount: withdrawalAmount,
+    minimumAssetAReceived: amountAReceive,
+    minimumAssetBReceived: amountBReceive,
+    availableUtxos: availableUtxos,
+  });
 }
+
+
 export const latency = (startTime: number, endTime: number): number => {
   return (endTime - startTime) / 1000;
 };
@@ -497,8 +681,6 @@ async function getBackendLucidInstance(
   projectId: string,
   blockfrostUrl: string,
   privateKey: string
-  // address: Address,
-  // seedPhrase: string,
 ): Promise<Lucid> {
   const provider = new Blockfrost(blockfrostUrl, projectId);
   const lucid = await Lucid.new(provider, network);
@@ -576,7 +758,7 @@ async function swapExactInTx(
   }
 
   const dex = new Dex(lucid);
-
+  console.log(req.address);
   const txComplete = await dex.buildSwapExactInTx({
     amountIn: swapAmountADA,
     assetIn: ADA,
@@ -592,102 +774,6 @@ async function swapExactInTx(
   return transactionId;
 }
 
-
-async function depositTx(
-  network: Network,
-  lucid: Lucid,
-  blockfrostAdapter: BlockfrostAdapter,
-  address: Address,
-  availableUtxos: UTxO[],
-  req: AddLiquidityRequest,
-  slippage: number,
-): Promise<TxComplete> {
-  let reqPoolId = ConfigManagerV2.getInstance().get('cardano.defaultPoolId');
-  if (req.poolId) {
-    reqPoolId = req.poolId;
-  }
-  const { poolState, poolDatum } = await getPoolById(
-    network,
-    blockfrostAdapter,
-    reqPoolId,
-  );
-
-  const depositedAmountA = BigInt(req.token0);
-  const depositedAmountB = BigInt(req.token1);
-
-  const { necessaryAmountA, necessaryAmountB, lpAmount } = calculateDeposit({
-    depositedAmountA: depositedAmountA,
-    depositedAmountB: depositedAmountB,
-    reserveA: poolState.reserveA,
-    reserveB: poolState.reserveB,
-    totalLiquidity: poolDatum.totalLiquidity,
-  });
-
-  // Because pool is always fluctuating, so you should determine the impact of amount which you will receive
-  const slippageTolerance = BigInt(slippage);
-  const acceptedLPAmount =
-    (lpAmount * (BigInt(100) - slippageTolerance)) / BigInt(100);
-
-  const dex = new Dex(lucid);
-  return await dex.buildDepositTx({
-    amountA: necessaryAmountA,
-    amountB: necessaryAmountB,
-    assetA: poolDatum.assetA,
-    assetB: poolDatum.assetB,
-    sender: address,
-    minimumLPReceived: acceptedLPAmount,
-    availableUtxos: availableUtxos,
-  });
-}
-
-async function withdrawTx(
-  network: Network,
-  lucid: Lucid,
-  blockfrostAdapter: BlockfrostAdapter,
-  address: Address,
-  availableUtxos: UTxO[],
-  req: RemoveLiquidityRequest,
-  slippage: number,
-): Promise<TxComplete> {
-  let reqPoolId = ConfigManagerV2.getInstance().get('cardano.defaultPoolId');
-  if (req.tokenId) {
-    reqPoolId = req.poolId;
-  }
-  const { poolState, poolDatum } = await getPoolById(
-    network,
-    blockfrostAdapter,
-    reqPoolId,
-  );
-
-  const lpAsset = Asset.fromString(poolState.assetLP);
-
-  const withAmt: any = req.decreasePercent;
-  const withdrawalAmount = BigInt(withAmt); //this is the amount you want to withdraw---
-
-  const { amountAReceive, amountBReceive } = calculateWithdraw({
-    withdrawalLPAmount: withdrawalAmount,
-    reserveA: poolState.reserveA,
-    reserveB: poolState.reserveB,
-    totalLiquidity: poolDatum.totalLiquidity,
-  });
-
-  // Because pool is always fluctuating, so you should determine the impact of amount which you will receive
-  const slippageTolerance = BigInt(slippage);
-  const acceptedAmountAReceive =
-    (amountAReceive * (BigInt(100) - slippageTolerance)) / BigInt(100);
-  const acceptedAmountBReceive =
-    (amountBReceive * (BigInt(100) - slippageTolerance)) / BigInt(100);
-
-  const dex = new Dex(lucid);
-  return await dex.buildWithdrawTx({
-    lpAsset: lpAsset,
-    lpAmount: withdrawalAmount,
-    sender: address,
-    minimumAssetAReceived: acceptedAmountAReceive,
-    minimumAssetBReceived: acceptedAmountBReceive,
-    availableUtxos: availableUtxos,
-  });
-}
 
 async function swapExactOutTx(
   network: Network,
@@ -767,3 +853,29 @@ async function cancelTx(
 
   return transactionId;
 }
+
+
+function getTokenAddressFromSymbol(
+  cardano: Cardano,
+  tokenSymbol: string
+): string {
+  const tokenAddress = cardano.getTokenAddress(tokenSymbol);
+  if (!tokenAddress)
+    throw new HttpException(
+      500,
+      TOKEN_NOT_SUPPORTED_ERROR_MESSAGE + tokenSymbol,
+      TOKEN_NOT_SUPPORTED_ERROR_CODE
+    );
+  return tokenAddress;
+}
+
+function calculateAssetAmount(utxos: UTxO[], asset: Asset): bigint {
+  return utxos.reduce((acc, utxo) => {
+    const assetValue = utxo.assets[asset.policyId + asset.tokenName];
+    if (assetValue) {
+      return acc + BigInt(assetValue); // Ensure addition is performed with BigInt
+    }
+    return acc;
+  }, 0n); // Initialize the accumulator with BigInt zero
+}
+

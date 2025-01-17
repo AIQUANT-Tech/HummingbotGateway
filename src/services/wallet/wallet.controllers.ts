@@ -85,7 +85,7 @@ export async function addWallet(
     }
     throw e;
   }
-  // there is no connection for Cardano 
+
   try {
     if (connection instanceof Algorand) {
       address = connection.getAccountFromPrivateKey(req.privateKey).addr;
@@ -160,8 +160,7 @@ export async function addWallet(
       );
     } else if (connection instanceof Cardano) {
       const wallet = await connection.getWalletFromPrivateKey(req.privateKey); // Await the promise
-      address = wallet.address; // Access the address property
-      // encryptedPrivateKey = await connection.encrypt(req.privateKey, passphrase);
+      address = wallet.address;
       encryptedPrivateKey = await connection.encrypt(req.privateKey, passphrase);
     }
 
