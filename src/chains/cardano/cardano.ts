@@ -6,6 +6,8 @@ import { promises as fs } from 'fs';
 import fse from 'fs-extra';
 import crypto from 'crypto';
 import { CardanoController } from "./cardano.controller";
+import { NETWORK_ERROR_CODE, NETWORK_ERROR_MESSAGE, HttpException, TOKEN_NOT_SUPPORTED_ERROR_CODE, TOKEN_NOT_SUPPORTED_ERROR_MESSAGE } from "../../services/error-handler";
+
 
 //import { Cardanoish } from "../../services/common-interfaces";
 export type CardanoTokenInfo = {
@@ -37,6 +39,14 @@ export class Cardano {
   public controller: typeof CardanoController;
 
   private constructor(network: string) {
+    // Throw error if network is not 'mainnet' or 'preprod'
+    if (network !== "mainnet" && network !== "preprod") {
+      throw new HttpException(
+        503,
+        NETWORK_ERROR_MESSAGE,
+        NETWORK_ERROR_CODE
+      )
+    }
     const config = getCardanoConfig('cardano', network);
     this._chain = 'cardano';
     this.ttl = config.ttl;
@@ -81,8 +91,8 @@ export class Cardano {
   }
 
   public async init(): Promise<void> {
-    console.log("apiurl", this.apiURL);
-    console.log("blockfrostProjectId", this.blockfrostProjectId);
+    // console.log("apiurl", this.apiURL);
+    // console.log("blockfrostProjectId", this.blockfrostProjectId);
 
     if (!Cardano.lucidInstance) {
       Cardano.lucidInstance = await Lucid.new(
@@ -141,7 +151,7 @@ export class Cardano {
 
     return { privateKey }; // Correctly resolved the Promise<string> to string
   }
-
+  // get native balance ADA
   public async getNativeBalance(privateKey: string): Promise<string> {
     const Lucid = this.getLucid();
     const wallet = Lucid.selectWalletFromPrivateKey(privateKey);
@@ -162,28 +172,38 @@ export class Cardano {
 
     return balanceInADA.toString();
   }
-  // getNativeBalance
+  // get Asset balance like MIN and LP
   async getAssetBalance(privateKey: string, token: string): Promise<string> {
     let tokenAdress: string;
-    let tokenInfo = this.getTokenForSymbol(token);
-    if (tokenInfo) {
-      tokenAdress = tokenInfo[0].policyId + tokenInfo[0].assetName;
+    const tokenInfo = this.getTokenForSymbol(token);
+
+    // If token information is not found, throw an error
+    if (!tokenInfo || tokenInfo.length === 0) {
+      throw new Error(`Token ${token} is not supported.`);
     }
+    console.log("tokenInfo", tokenInfo);
+
+    tokenAdress = tokenInfo[0]?.policyId + tokenInfo[0]?.assetName;
+    console.log("tokenAdress", tokenAdress);
+
     const Lucid = this.getLucid();
     const wallet = Lucid.selectWalletFromPrivateKey(privateKey);
 
     // Get wallet address
     const address = await Lucid.wallet.address();
+
     // Fetch UTXOs at the wallet's address
     const utxos = await Lucid.utxosAt(address);
-    const calculatedtokenBalance = utxos.reduce((acc, utxo) => {
+
+    // Calculate token balance
+    const calculatedTokenBalance = utxos.reduce((acc, utxo) => {
       if (utxo.assets[tokenAdress]) {
         return acc + Number(utxo.assets[tokenAdress]);
       }
       return acc;
     }, 0);
 
-    return calculatedtokenBalance.toString();
+    return calculatedTokenBalance.toString();
   }
 
   async encrypt(secret: string, password: string): Promise<string> {
@@ -316,11 +336,27 @@ export class Cardano {
   public getTokenAddress(symbol: string): string {
     let tokenAddress: string = "";
     let tokenInfo = this.getTokenForSymbol(symbol);
-    if (tokenInfo) {
-      tokenAddress = tokenInfo[0].policyId + tokenInfo[0].assetName;
+    // If token information is not found, throw an error
+    if (!tokenInfo || tokenInfo.length === 0) {
+      // Handle token not supported errors
+      throw new HttpException(
+        500,
+        TOKEN_NOT_SUPPORTED_ERROR_MESSAGE,
+        TOKEN_NOT_SUPPORTED_ERROR_CODE
+      );
     }
+    // console.log("tokenInfo", tokenInfo);
+
+    tokenAddress = tokenInfo[0]?.policyId + tokenInfo[0]?.assetName;
+    // console.log("tokenAdress", tokenAddress);
+
     return tokenAddress;
   }
 
+  async close() {
+    if (this._chain in Cardano._instances) {
+      delete Cardano._instances[this._chain];
+    }
+  }
 
 }

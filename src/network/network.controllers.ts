@@ -128,7 +128,7 @@ export async function getStatus(
     network = connection.network;
     rpcUrl = connection.rpcUrl;
     nativeCurrency = connection.nativeTokenSymbol;
-    console.log("connection", connection);
+    // console.log("connection", connection);
 
     try {
       currentBlockNumber = await connection.getCurrentBlockNumber();

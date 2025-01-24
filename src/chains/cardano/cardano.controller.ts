@@ -5,6 +5,13 @@ import {
     PollRequest,
     getNetworkId
 } from './cardano.requests';
+import {
+    HttpException,
+    LOAD_WALLET_ERROR_CODE,
+    LOAD_WALLET_ERROR_MESSAGE,
+    TOKEN_NOT_SUPPORTED_ERROR_CODE,
+    TOKEN_NOT_SUPPORTED_ERROR_MESSAGE,
+} from '../../services/error-handler';
 
 import { TokensRequest } from '../../network/network.requests';
 import { TokenInfo } from '../../services/base';
@@ -19,21 +26,33 @@ export class CardanoController {
         return await cardano.getTransaction(req.txHash);
     }
 
-    // balances function that fetches the balance for native token(ada) through fetching all utxos and calculating balances from that
     static async balances(chain: Cardano, request: BalanceRequest): Promise<{ balances: Record<string, string> }> {
         validateCardanoBalanceRequest(request);
-        // selected wallet private key after decrypting it.
+
+        // Selected wallet private key after decrypting it
         const wallet = await chain.getWalletFromAddress(request.address);
 
         const balances: Record<string, string> = {};
 
+        // Get native token balance if included in request
         if (request.tokenSymbols.includes(chain.nativeTokenSymbol)) {
             balances[chain.nativeTokenSymbol] = await chain.getNativeBalance(wallet.privateKey);
         }
 
+        // Iterate through requested token symbols
         for (const token of request.tokenSymbols) {
             if (token === chain.nativeTokenSymbol) continue;
-            balances[token] = await chain.getAssetBalance(wallet.privateKey, token);
+
+            try {
+                balances[token] = await chain.getAssetBalance(wallet.privateKey, token);
+            } catch (error) {
+                // Handle token not supported errors
+                throw new HttpException(
+                    500,
+                    TOKEN_NOT_SUPPORTED_ERROR_MESSAGE + error,
+                    TOKEN_NOT_SUPPORTED_ERROR_CODE
+                );
+            }
         }
 
         return { balances };

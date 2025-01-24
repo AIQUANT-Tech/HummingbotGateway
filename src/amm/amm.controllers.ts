@@ -109,8 +109,6 @@ export async function price(req: PriceRequest): Promise<PriceResponse> {
     return chain.controller.price(chain as unknown as Osmosis, req);
   }
 
-
-
   const connector: Uniswapish | RefAMMish | Tinyman | Plenty | QuipuSwap | MinSwap =
     await getConnector<Uniswapish | RefAMMish | Tinyman | Plenty | QuipuSwap | MinSwap>(
       req.chain,

@@ -1,14 +1,18 @@
 import request from 'supertest';
 import { gatewayApp } from '../../src/app';
 import { Ethereum } from '../../src/chains/ethereum/ethereum';
+import { Cardano } from '../../src/chains/cardano/cardano';
 import { patchEVMNonceManager } from '../evm.nonce.mock';
 import { patch, unpatch } from '../services/patch';
 let eth: Ethereum;
+let cardano: Cardano;
 
 beforeAll(async () => {
   eth = Ethereum.getInstance('goerli');
+  cardano = Cardano.getInstance('preprod');
   patchEVMNonceManager(eth.nonceManager);
   await eth.init();
+  await cardano.init();
 });
 
 beforeEach(() => {
@@ -21,6 +25,7 @@ afterEach(async () => {
 
 afterAll(async () => {
   await eth.close();
+  await cardano.close();
 });
 
 describe('GET /chain/status', () => {
@@ -49,7 +54,28 @@ describe('GET /chain/status', () => {
       .expect((res) => expect(res.body.currentBlockNumber).toBeDefined());
   });
 
-  it('should return 200 when requesting network status without specifying', async () => {
+  it('should return 200 when asking for cardano preprod network status', async () => {
+    patch(cardano, 'chain', () => {
+      return 'cardano';
+    });
+    patch(cardano, 'getCurrentBlockNumber', () => {
+      return 3108560;
+    });
+
+    await request(gatewayApp)
+      .get(`/chain/status`)
+      .query({
+        chain: 'cardano',
+        network: 'preprod',
+      })
+      .expect('Content-Type', /json/)
+      .expect(200)
+      .expect((res) => expect(res.body.chain).toBe('cardano'))
+      .expect((res) => expect(res.body.currentBlockNumber).toBeDefined());
+  });
+
+
+  it('should return 503 when requesting network status without specifying', async () => {
     patch(eth, 'getCurrentBlockNumber', () => {
       return 212;
     });
@@ -57,8 +83,8 @@ describe('GET /chain/status', () => {
     await request(gatewayApp)
       .get(`/chain/status`)
       .expect('Content-Type', /json/)
-      .expect(200)
-      .expect((res) => expect(Array.isArray(res.body)).toEqual(true));
+      .expect(503)
+      .expect((res) => expect(Array.isArray(res.body)).toEqual(false));
   });
 
   it('should return 500 when asking for invalid network', async () => {
@@ -92,6 +118,29 @@ describe('GET /chain/tokens', () => {
       .expect(200);
   });
 
+  it('should return 200 when retrieving cardano-preprod tokens, tokenSymbols parameter not provided', async () => {
+    await request(gatewayApp)
+      .get(`/chain/tokens`)
+      .query({
+        chain: 'cardano',
+        network: 'preprod',
+      })
+      .expect('Content-Type', /json/)
+      .expect(200);
+  });
+
+  it('should return 200 when retrieving cardano-preprod tokens, s parameter provided', async () => {
+    await request(gatewayApp)
+      .get(`/chain/tokens`)
+      .query({
+        chain: 'cardano',
+        network: 'preprod',
+        tokenSymbols: ['ADA', 'MIN'],
+      })
+      .expect('Content-Type', /json/)
+      .expect(200);
+  });
+  
   it('should return 200 when retrieving ethereum-goerli tokens, s parameter provided', async () => {
     await request(gatewayApp)
       .get(`/chain/tokens`)
@@ -103,6 +152,7 @@ describe('GET /chain/tokens', () => {
       .expect('Content-Type', /json/)
       .expect(200);
   });
+
 
   it('should return 200 when retrieving ethereum-goerli tokens, tokenSymbols parameter not provided', async () => {
     await request(gatewayApp)

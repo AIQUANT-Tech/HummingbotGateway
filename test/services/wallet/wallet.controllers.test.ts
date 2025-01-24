@@ -20,6 +20,7 @@ import { ConfigManagerCertPassphrase } from '../../../src/services/config-manage
 import { BinanceSmartChain } from '../../../src/chains/binance-smart-chain/binance-smart-chain';
 import { Cronos } from '../../../src/chains/cronos/cronos';
 import { Near } from '../../../src/chains/near/near';
+import { Cardano } from '../../../src/chains/cardano/cardano';
 // import { Cosmos } from '../../../src/chains/cosmos/cosmos';
 
 let avalanche: Avalanche;
@@ -28,6 +29,7 @@ let eth: Ethereum;
 let harmony: Harmony;
 let bsc: BinanceSmartChain;
 let near: Near;
+let cardano: Cardano;
 // let cosmos: Cosmos;
 
 beforeAll(async () => {
@@ -39,6 +41,7 @@ beforeAll(async () => {
   bsc = BinanceSmartChain.getInstance('testnet');
   cronos = Cronos.getInstance('testnet');
   near = Near.getInstance('testnet');
+  cardano = Cardano.getInstance('preprod');
   // cosmos = Cosmos.getInstance('testnet');
 });
 
@@ -53,6 +56,7 @@ afterAll(async () => {
   await bsc.close();
   await cronos.close();
   await near.close();
+  await cardano.close();
   // await cosmos.close();
 });
 
@@ -60,8 +64,12 @@ afterEach(() => unpatch());
 
 const oneAddress = '0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf';
 
+const cardanoAddress = 'addr_test1vznd34ydghfh2aw8cnn5lgw90vpvlg82ngj30wzue0rw5jgct5m7d'
+
 const onePrivateKey =
   '0000000000000000000000000000000000000000000000000000000000000001'; // noqa: mock
+
+const cardanoPrivateKey = 'ed25519_sk1n24dk27xar2skjef5a5xvpk0uy0sqw62tt7hlv7wcpd4xp4fhy5sdask94'
 
 // encoding of onePrivateKey with the password 'a'
 const encodedPrivateKey = {
@@ -84,6 +92,34 @@ const encodedPrivateKey = {
     mac: '0cea1492f67ed43234b69100d873e17b4a289dd508cf5e866a3b18599ff0a5fc', // noqa: mock
   },
 };
+
+const cardanoEncryptedPrivateKey = {
+  "algorithm": "aes-256-ctr",
+  "iv": {
+    "type": "Buffer",
+    "data": [
+      58, 68, 80, 141, 10, 254, 236, 255, 100, 50, 161, 116, 234, 131, 30, 53
+    ]
+  },
+  "salt": {
+    "type": "Buffer",
+    "data": [
+      85, 152, 161, 10, 209, 245, 196, 130, 253, 57, 52, 30, 128, 187, 197, 115,
+      34, 100, 132, 10, 131, 167, 228, 40, 130, 81, 88, 13, 177, 90, 171, 128
+    ]
+  },
+  "encrypted": {
+    "type": "Buffer",
+    "data": [
+      76, 105, 161, 25, 20, 41, 160, 24, 85, 0, 118, 2, 138, 237, 191, 213, 21,
+      11, 20, 228, 149, 153, 215, 45, 61, 77, 217, 85, 139, 45, 169, 64, 172,
+      149, 87, 168, 82, 192, 89, 217, 202, 171, 239, 55, 211, 243, 242, 54, 27,
+      172, 14, 236, 14, 222, 181, 125, 65, 196, 82, 188, 81, 92, 38, 189, 215,
+      147, 152, 67, 38
+    ]
+  }
+}
+
 
 // const cosmosAddress = 'cosmos18nadm9qd4pz8pgffhvehc0dthuhpgevp4l3nar';
 // const cosmosPrivateKey =
@@ -231,6 +267,31 @@ describe('addWallet and getWallets', () => {
     expect(addresses[0]).toContain(oneAddress);
   });
 
+  it('add a Cardano wallet', async () => {
+    patch(cardano, 'getWallet', () => {
+      return {
+        address: cardanoAddress,
+      };
+    });
+
+    patch(cardano, 'encrypt', () => {
+      return JSON.stringify(cardanoEncryptedPrivateKey);
+    });
+
+    await addWallet({
+      privateKey: cardanoPrivateKey,
+      chain: 'cardano',
+      network: 'preprod',
+    });
+
+    const wallets = await getWallets();
+
+    const addresses: string[][] = wallets
+      .filter((wallet) => wallet.chain === 'cardano')
+      .map((wallet) => wallet.walletAddresses);
+
+    expect(addresses[0]).toContain(cardanoAddress);
+  });
   // it('add a Cosmos wallet', async () => {
   //   patch(cosmos, 'getWallet', () => {
   //     return {
@@ -354,6 +415,33 @@ describe('addWallet and removeWallets', () => {
     expect(addresses[0]).not.toContain(oneAddress);
   });
 
+  it('remove a Cardano wallet', async () => {
+    patch(cardano, 'getWallet', () => {
+      return {
+        address: cardanoAddress,
+      };
+    });
+
+    patch(cardano, 'encrypt', () => {
+      return JSON.stringify(cardanoEncryptedPrivateKey);
+    });
+
+    await addWallet({
+      privateKey: cardanoPrivateKey,
+      chain: 'cardano',
+      network: 'preprod',
+    });
+
+    await removeWallet({ chain: 'cardano', address: cardanoAddress });
+
+    const wallets = await getWallets();
+
+    const addresses: string[][] = wallets
+      .filter((wallet) => wallet.chain === 'cardano')
+      .map((wallet) => wallet.walletAddresses);
+
+    expect(addresses[0]).not.toContain(cardanoAddress);
+  });
   // it('remove a Cosmos wallet', async () => {
   //   patch(cosmos, 'getWallet', () => {
   //     return {

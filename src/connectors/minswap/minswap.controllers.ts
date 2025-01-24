@@ -177,7 +177,6 @@ export async function price(
   req: PriceRequest,
 ): Promise<PriceResponse> {
   const startTimestamp: number = Date.now();
-  let tradeInfo;
   console.log(
     'MY connector MinSwap is reached---------------',
     minSwap,
@@ -194,11 +193,10 @@ export async function price(
     api,
     poolidentifier,
   );
-  console.log(returnedPool.poolState)
+  // console.log(returnedPool.poolState)
   const [a, b] = await api.getV1PoolPrice({ pool: returnedPool.poolState });
 
-
-  console.log(`ADA/MIN price: ${a.toString()}; MIN/ADA price: ${b.toString()}`);
+  // console.log(`ADA/MIN price: ${a.toString()}; MIN/ADA price: ${b.toString()}`);
 
   /** here a is ADA/MIN and b is  MIN/ADA*/
 
@@ -245,9 +243,8 @@ export async function price(
   totalValue = amountToSpend * conversionFactor;
   expectedAmount = totalValue.toFixed(2).toString();
 
-  const baseToken =
-    cardanoish.getTokenAddress(req.base);
-  const quoteToken = cardanoish.getTokenAddress(req.quote);
+  const baseToken = getTokenAddressFromSymbol(cardanoish, req.base);
+  const quoteToken = getTokenAddressFromSymbol(cardanoish, req.quote);
 
   return {
     network: req.network,
@@ -255,8 +252,6 @@ export async function price(
     latency: latency(startTimestamp, Date.now()),
     base: baseToken,
     quote: quoteToken,
-    // base: req.base,
-    // quote: req.quote,
     amount: new Decimal(req.amount).toFixed(2).toString(),
     rawAmount: expectedAmount,
     expectedAmount: expectedAmount,
@@ -307,12 +302,14 @@ export async function trade(
   }
 
   const utxos = await initialTradeVal.lucid.utxosAt(req.address);
+  const baseToken = getTokenAddressFromSymbol(cardanoish, req.base);
+  const quoteToken = getTokenAddressFromSymbol(cardanoish, req.quote);
   // console.log(utxos);
-  if (req.side === 'BUY') {
-    console.log('BUY Trade: Base:', req.base, 'Quote:', req.quote);
-  } else if (req.side === 'SELL') {
-    console.log('SELL Trade: Base:', req.base, 'Quote:', req.quote);
-  }
+  // if (req.side === 'BUY') {
+  //   console.log('BUY Trade: Base:', req.base, 'Quote:', req.quote);
+  // } else if (req.side === 'SELL') {
+  //   console.log('SELL Trade: Base:', req.base, 'Quote:', req.quote);
+  // }
 
   let txnId = '';
   if (req.side == 'SELL') {
@@ -341,8 +338,8 @@ export async function trade(
     network: req.network,
     timestamp: startTimestamp,
     latency: latency(startTimestamp, Date.now()),
-    base: req.base,
-    quote: req.quote,
+    base: baseToken,
+    quote: quoteToken,
     amount: new Decimal(req.amount).toFixed(2).toString(),
     rawAmount: new Decimal(req.amount).toFixed(2).toString(),
     expectedIn: new Decimal(req.amount).toFixed(2).toString(),
@@ -390,7 +387,7 @@ export async function poolPrice(cardano: Cardano,
   );
 
   const [priceA, priceB] = await blockfrostAdapterInstance.getV1PoolPrice({ pool: poolState });
-  console.log(priceA, priceB);
+  // console.log(priceA, priceB);
 
   const token0Address = getTokenAddressFromSymbol(
     cardano,
@@ -447,7 +444,7 @@ export async function addLiquidity(
     wallet.privateKey
   );
   const utxos = await lucid.utxosAt(address);
-  console.log("utxos: ", utxos);
+  // console.log("utxos: ", utxos);
 
   const txComplete = await depositTx(
     network,
@@ -500,7 +497,7 @@ async function depositTx(
     blockfrostAdapter,
     poolId,
   );
-  console.log(poolState);
+  // console.log(poolState);
 
   // Extract assetA and assetB details from poolDatum
   const { assetA, assetB } = poolDatum;
@@ -510,8 +507,8 @@ async function depositTx(
   const amount1 = new Decimal(req.amount1).toFixed(0).toString();
   const depositedAmountA = BigInt(amount0) * BigInt(1_000_000);
   const depositedAmountB = BigInt(amount1);
-  console.log(depositedAmountA);
-  console.log(depositedAmountB);
+  // console.log(depositedAmountA);
+  // console.log(depositedAmountB);
 
 
 
@@ -522,13 +519,13 @@ async function depositTx(
     reserveB: poolState.reserveB,
     totalLiquidity: poolDatum.totalLiquidity,
   });
-  console.log(poolState.reserveA + "!!!!" + poolState.reserveB);
-  console.log(poolDatum.totalLiquidity);
+  // console.log(poolState.reserveA + "!!!!" + poolState.reserveB);
+  // console.log(poolDatum.totalLiquidity);
 
-  console.log("necessaryAmountA", necessaryAmountA + " : " + "necessaryAmountB", necessaryAmountB);
-  console.log("assetA: ", assetA);
-  console.log("assetB: ", assetB);
-  console.log("total LP", poolDatum.totalLiquidity);
+  // console.log("necessaryAmountA", necessaryAmountA + " : " + "necessaryAmountB", necessaryAmountB);
+  // console.log("assetA: ", assetA);
+  // console.log("assetB: ", assetB);
+  // console.log("total LP", poolDatum.totalLiquidity);
 
   // Use Dex object to build deposit transaction
   const dex = new Dex(lucid);
@@ -623,14 +620,14 @@ async function withdrawTx(
 
   // Parse LP asset from pool state
   const lpAsset = Asset.fromString(poolState.assetLP);
-  console.log(lpAsset);
+  // console.log(lpAsset);
 
   // Determine withdrawal percentage, defaulting to 100%
   const withAmt = req.decreasePercent ? req.decreasePercent : 100;
 
   // Calculate LP amount in the wallet
   const lpAmountInWallet = calculateAssetAmount(availableUtxos, lpAsset);
-  console.log("lpAmountInWallet:::", lpAmountInWallet);
+  // console.log("lpAmountInWallet:::", lpAmountInWallet);
 
   if (lpAmountInWallet === 0n) {
     throw new Error("No LP tokens available in the wallet.");
@@ -641,7 +638,7 @@ async function withdrawTx(
   if (withdrawalAmount === 0n) {
     throw new Error("Withdrawal amount is zero. Adjust the percentage or check LP tokens.");
   }
-  console.log("withdrawalAmount:::", withdrawalAmount);
+  // console.log("withdrawalAmount:::", withdrawalAmount);
 
   // Calculate the assets to be received upon withdrawal
   const { amountAReceive, amountBReceive } = calculateWithdraw({
@@ -650,14 +647,14 @@ async function withdrawTx(
     reserveB: poolState.reserveB,
     totalLiquidity: poolDatum.totalLiquidity,
   });
-  console.log("amountAReceive:::", amountAReceive);
-  console.log("amountBReceive:::", amountBReceive);
+  // console.log("amountAReceive:::", amountAReceive);
+  // console.log("amountBReceive:::", amountBReceive);
 
   if (amountAReceive <= 0n || amountBReceive <= 0n) {
     throw new Error("Received amounts are invalid. Check pool reserves or withdrawal amount.");
   }
 
-  console.log("Building withdrawal transaction...");
+  // console.log("Building withdrawal transaction...");
 
   // Build and return the withdrawal transaction
   const dex = new Dex(lucid);
@@ -731,12 +728,12 @@ async function swapExactInTx(
     blockfrostAdapter,
     poolId,
   );
-  console.log('poolState:::', poolState);
-  console.log('poolDatum:::', poolDatum);
+  // console.log('poolState:::', poolState);
+  // console.log('poolDatum:::', poolDatum);
 
   // Calculate the amount of ADA to swap
   const swapAmountADA = BigInt(Math.floor(Number(req.amount) * 1_000_000)); // Convert ADA to lovelace
-  console.log('swapAmountADA:', swapAmountADA);
+  // console.log('swapAmountADA:', swapAmountADA);
 
   // Calculate the amount of MIN received
   const { amountOut } = calculateSwapExactIn({
@@ -750,7 +747,7 @@ async function swapExactInTx(
   const acceptedAmount =
     (amountOut * (BigInt(100) - slippageTolerance)) / BigInt(100);
 
-  console.log('AmountOut:', amountOut.toString(), 'AcceptedAmount:', acceptedAmount.toString());
+  // console.log('AmountOut:', amountOut.toString(), 'AcceptedAmount:', acceptedAmount.toString());
 
   // Ensure sufficient MIN tokens are being exchanged for the given ADA
   if (acceptedAmount === BigInt(0)) {
@@ -758,7 +755,7 @@ async function swapExactInTx(
   }
 
   const dex = new Dex(lucid);
-  console.log(req.address);
+  // console.log(req.address);
   const txComplete = await dex.buildSwapExactInTx({
     amountIn: swapAmountADA,
     assetIn: ADA,
@@ -789,9 +786,9 @@ async function swapExactOutTx(
     blockfrostAdapter,
     poolId,
   );
-  console.log("Swap Exact out transaction called");
-  console.log('Pool State:', poolState);
-  console.log('Pool Datum:', poolDatum);
+  // console.log("Swap Exact out transaction called");
+  // console.log('Pool State:', poolState);
+  // console.log('Pool Datum:', poolDatum);
 
   // Parse the requested amount (exact ADA to receive)
   const amount: number = Number(req.amount);
@@ -808,8 +805,8 @@ async function swapExactOutTx(
   const necessaryAmountIn =
     (amountIn * (BigInt(100) + slippageTolerance)) / BigInt(100); // Add slippage
 
-  console.log('Necessary MIN Input:', necessaryAmountIn.toString());
-  console.log('Expected ADA Output:', exactAmountOutADA.toString());
+  // console.log('Necessary MIN Input:', necessaryAmountIn.toString());
+  // console.log('Expected ADA Output:', exactAmountOutADA.toString());
 
   const dex = new Dex(lucid);
 

@@ -1,0 +1,12 @@
+{
+  "network": "cardano",
+  "timestamp": 1737539494231,
+  "latency": 0.568,
+  "txHash": "44913c9c72bddd124198ec4c6bf7c87c41e1b1c8564c05c8b31cb7e61c8896c2",
+  "block": "b798bd5a77bf446f9842f403768fa812311d9410c227a153a9965bfe1aaabf0e",
+  "blockHeight": 3112457,
+  "blockTime": 1737539339,
+  "fees": "1590425",
+  "validContract": true,
+  "status": "confirmed"
+}

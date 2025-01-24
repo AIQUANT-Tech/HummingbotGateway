@@ -9,6 +9,7 @@ import {
   validateAccountID,
   isNearPrivateKey,
   isCosmosPrivateKey,
+  isCardanoPrivateKey,
   invalidCosmosPrivateKeyError,
   invalidAccountIDError,
 } from '../../../src/services/wallet/wallet.validators';
@@ -70,6 +71,24 @@ describe('isNearPrivateKey', () => {
 
   it('fail against a string that is invalid', () => {
     expect(isEthPrivateKey('ed25519')).toEqual(false);
+  });
+});
+
+describe('isCardanoPrivateKey', () => {
+  it('pass against a well formed private key', () => {
+    expect(
+      isCardanoPrivateKey(
+        'ed25519_sk1n24dk27xar2skjef5a5xvpk0uy0sqw62tt7hlv7wcpd4xp4fhy5sdask94' // noqa: mock
+      )
+    ).toEqual(true);
+  });
+
+  it('fail against a string that is invalid', () => {
+    expect(
+      isCardanoPrivateKey(
+        'test123' // noqa: mock
+      )
+    ).toEqual(false);
   });
 });
 
@@ -154,6 +173,16 @@ describe('validatePrivateKey', () => {
     ).toEqual([]);
   });
 
+  it('valid when req.privateKey is a cardano key', () => {
+    expect(
+      validatePrivateKey({
+        chain: 'cardano',
+        privateKey:
+          'ed25519_sk1n24dk27xar2skjef5a5xvpk0uy0sqw62tt7hlv7wcpd4xp4fhy5sdask94', // noqa: mock
+      })
+    ).toEqual([]);
+  });
+
   it('return error when req.privateKey does not exist', () => {
     expect(
       validatePrivateKey({
@@ -162,6 +191,7 @@ describe('validatePrivateKey', () => {
       })
     ).toEqual([missingParameter('privateKey')]);
   });
+
 
   it('return error when req.chain does not exist', () => {
     expect(
@@ -257,6 +287,14 @@ describe('validateChain', () => {
     ).toEqual([]);
   });
 
+  it('valid when chain is cardano', () => {
+    expect(
+      validateChain({
+        chain: 'cardano',
+      })
+    ).toEqual([]);
+  });
+
   it('return error when req.chain does not exist', () => {
     expect(
       validateChain({
@@ -279,6 +317,14 @@ describe('validateAddress', () => {
     expect(
       validateAddress({
         address: '0x000000000000000000000000000000000000000',
+      })
+    ).toEqual([]);
+  });
+
+  it('valid when cardano address is a string', () => {
+    expect(
+      validateAddress({
+        address: 'addr_test1vznd34ydghfh2aw8cnn5lgw90vpvlg82ngj30wzue0rw5jgct5m7d',
       })
     ).toEqual([]);
   });
