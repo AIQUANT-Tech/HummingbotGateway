@@ -107,106 +107,106 @@ const patchExecuteTrade = () => {
     });
 };
 
-// describe('POST /amm/price', () => {
-//     it('should return 200 for BUY', async () => {
-//         patchGetWallet();
-//         patchInit();
-//         patchStoredTokenList();
-//         patchGetTokenBySymbol();
-//         patchExecuteTrade();
+describe('POST /amm/price', () => {
+    it('should return 200 for BUY', async () => {
+        patchGetWallet();
+        patchInit();
+        patchStoredTokenList();
+        patchGetTokenBySymbol();
+        patchExecuteTrade();
 
-//         await request(app)
-//             .post(`/amm/price`)
-//             .send({
-//                 chain: 'cardano',
-//                 network: 'preprod',
-//                 connector: 'minswap',
-//                 address: address,
-//                 base: 'ADA',
-//                 quote: 'MIN',
-//                 amount: '100',
-//                 side: 'BUY'
-//             })
-//             .set('Accept', 'application/json')
-//             .expect(200)
-//             .then((res: any) => {
-//                 expect(res.body.amount).toBeDefined();
-//                 expect(res.body.rawAmount).toBeDefined();
-//             });
-//     });
+        await request(app)
+            .post(`/amm/price`)
+            .send({
+                chain: 'cardano',
+                network: 'preprod',
+                connector: 'minswap',
+                address: address,
+                base: 'ADA',
+                quote: 'MIN',
+                amount: '100',
+                side: 'BUY'
+            })
+            .set('Accept', 'application/json')
+            .expect(200)
+            .then((res: any) => {
+                expect(res.body.amount).toBeDefined();
+                expect(res.body.rawAmount).toBeDefined();
+            });
+    });
 
-//     it('should return 200 for SELL', async () => {
-//         patchGetWallet();
-//         patchInit();
-//         patchStoredTokenList();
-//         patchGetTokenBySymbol();
-//         patchExecuteTrade();
+    it('should return 200 for SELL', async () => {
+        patchGetWallet();
+        patchInit();
+        patchStoredTokenList();
+        patchGetTokenBySymbol();
+        patchExecuteTrade();
 
-//         await request(app)
-//             .post(`/amm/price`)
-//             .send({
-//                 chain: 'cardano',
-//                 network: 'preprod',
-//                 connector: 'minswap',
-//                 address: address,
-//                 base: 'ADA',
-//                 quote: 'MIN',
-//                 amount: '100',
-//                 side: 'SELL'
-//             })
-//             .set('Accept', 'application/json')
-//             .expect(200)
-//             .then((res: any) => {
-//                 expect(res.body.amount).toBeDefined();
-//                 expect(res.body.rawAmount).toBeDefined();
-//             });
-//     });
+        await request(app)
+            .post(`/amm/price`)
+            .send({
+                chain: 'cardano',
+                network: 'preprod',
+                connector: 'minswap',
+                address: address,
+                base: 'ADA',
+                quote: 'MIN',
+                amount: '100',
+                side: 'SELL'
+            })
+            .set('Accept', 'application/json')
+            .expect(200)
+            .then((res: any) => {
+                expect(res.body.amount).toBeDefined();
+                expect(res.body.rawAmount).toBeDefined();
+            });
+    });
 
-//     it('should return 500 for unrecognized quote symbol', async () => {
-//         patchGetWallet();
-//         patchInit();
-//         patchStoredTokenList();
-//         patchGetTokenBySymbol();
+    it('should return 500 for unrecognized quote symbol', async () => {
+        patchGetWallet();
+        patchInit();
+        patchStoredTokenList();
+        patchGetTokenBySymbol();
 
-//         await request(app)
-//             .post(`/amm/price`)
-//             .send({
-//                 chain: 'cardano',
-//                 network: 'preprod',
-//                 connector: 'minswap',
-//                 address: address,
-//                 base: 'ADA',
-//                 quote: 'DOGE',
-//                 amount: '100',
-//                 side: 'SELL'
-//             })
-//             .set('Accept', 'application/json')
-//             .expect(500);
-//     });
+        await request(app)
+            .post(`/amm/price`)
+            .send({
+                chain: 'cardano',
+                network: 'preprod',
+                connector: 'minswap',
+                address: address,
+                base: 'ADA',
+                quote: 'DOGE',
+                amount: '100',
+                side: 'SELL'
+            })
+            .set('Accept', 'application/json')
+            .expect(500);
+    });
 
-//     it('should return 500 for unrecognized base symbol', async () => {
-//         patchGetWallet();
-//         patchInit();
-//         patchStoredTokenList();
-//         patchGetTokenBySymbol();
+    it('should return 500 for unrecognized base symbol', async () => {
+        patchGetWallet();
+        patchInit();
+        patchStoredTokenList();
+        patchGetTokenBySymbol();
 
-//         await request(app)
-//             .post(`/amm/price`)
-//             .send({
-//                 chain: 'cardano',
-//                 network: 'preprod',
-//                 connector: 'minswap',
-//                 address: address,
-//                 base: 'SHIBA',
-//                 quote: 'MIN',
-//                 amount: '100',
-//                 side: 'SELL'
-//             })
-//             .set('Accept', 'application/json')
-//             .expect(500);
-//     });
+        await request(app)
+            .post(`/amm/price`)
+            .send({
+                chain: 'cardano',
+                network: 'preprod',
+                connector: 'minswap',
+                address: address,
+                base: 'SHIBA',
+                quote: 'MIN',
+                amount: '100',
+                side: 'SELL'
+            })
+            .set('Accept', 'application/json')
+            .expect(500);
+    });
 
-// });
+});
 
 describe('POST /amm/trade', () => {
     const patchForBuy = () => {
