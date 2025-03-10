@@ -1,22 +1,27 @@
-import { getCardanoConfig } from "./cardano.config";
-import { Lucid, Blockfrost, C } from "lucid-cardano";
+import { getCardanoConfig } from './cardano.config';
+import { Lucid, Blockfrost, C } from 'lucid-cardano';
 import { TokenListType, walletPath } from '../../services/base';
 import { ConfigManagerCertPassphrase } from '../../services/config-manager-cert-passphrase';
 import { promises as fs } from 'fs';
 import fse from 'fs-extra';
 import crypto from 'crypto';
-import { CardanoController } from "./cardano.controller";
-import { NETWORK_ERROR_CODE, NETWORK_ERROR_MESSAGE, HttpException, TOKEN_NOT_SUPPORTED_ERROR_CODE, TOKEN_NOT_SUPPORTED_ERROR_MESSAGE } from "../../services/error-handler";
-
+import { CardanoController } from './cardano.controller';
+import {
+  NETWORK_ERROR_CODE,
+  NETWORK_ERROR_MESSAGE,
+  HttpException,
+  TOKEN_NOT_SUPPORTED_ERROR_CODE,
+  TOKEN_NOT_SUPPORTED_ERROR_MESSAGE,
+} from '../../services/error-handler';
 
 //import { Cardanoish } from "../../services/common-interfaces";
 export type CardanoTokenInfo = {
-  policyId: string,
-  assetName: string,
-  decimals: number,
-  name: string,
-  symbol: string,
-  logoURI: string
+  policyId: string;
+  assetName: string;
+  decimals: number;
+  name: string;
+  symbol: string;
+  logoURI: string;
 };
 
 export class Cardano {
@@ -25,7 +30,7 @@ export class Cardano {
   private _tokenMap: Record<string, CardanoTokenInfo[]> = {};
   private _tokenListSource: string;
   private _tokenListType: TokenListType;
-  private static lucidInstance: Lucid | null = null;
+  private lucidInstance: Lucid | null = null;
   private network: string;
   public allowedSlippage?: string;
   public blockfrostProjectId: string;
@@ -35,32 +40,35 @@ export class Cardano {
   private _ready: boolean = false;
   public apiURL: any;
   public defaultPoolId: string;
+  public sundaeswapPoolId: string;
   public nativeTokenSymbol: string;
   public controller: typeof CardanoController;
 
   private constructor(network: string) {
     // Throw error if network is not 'mainnet' or 'preprod'
-    if (network !== "mainnet" && network !== "preprod") {
-      throw new HttpException(
-        503,
-        NETWORK_ERROR_MESSAGE,
-        NETWORK_ERROR_CODE
-      )
+    if (
+      network !== 'mainnet' &&
+      network !== 'preprod' &&
+      network !== 'preview'
+    ) {
+      throw new HttpException(503, NETWORK_ERROR_MESSAGE, NETWORK_ERROR_CODE);
     }
     const config = getCardanoConfig('cardano', network);
     this._chain = 'cardano';
     this.ttl = config.ttl;
     // Determine the appropriate Blockfrost Project ID and API URL
+    const networkConfig = {
+      preprod: config.preprodBlockfrostProjectId,
+      preview: config.previewBlockfrostProjectId,
+      mainnet: config.blockfrostProjectId, // Assuming mainnet as default
+    };
     this.blockfrostProjectId =
-      network === "preprod"
-        ? config.preprodBlockfrostProjectId
-        : config.blockfrostProjectId;
+      networkConfig[network] || config.blockfrostProjectId;
 
-    // this.gasLimitEstimate = config.gasLimitEstimate;
     this.allowedSlippage = config.allowedSlippage;
-    // this.network = config.network;
     this.apiURL = config.network.apiurl;
     this.defaultPoolId = config.defaultPoolId;
+    this.sundaeswapPoolId = config.sundaeswapPoolId;
     this.network = config.network.name;
     this.nativeTokenSymbol = config.nativeCurrencySymbol;
     this.controller = CardanoController;
@@ -91,34 +99,39 @@ export class Cardano {
   }
 
   public async init(): Promise<void> {
-    // console.log("apiurl", this.apiURL);
-    // console.log("blockfrostProjectId", this.blockfrostProjectId);
-
-    if (!Cardano.lucidInstance) {
-      Cardano.lucidInstance = await Lucid.new(
+    if (!this.lucidInstance) {
+      this.lucidInstance = await Lucid.new(
         new Blockfrost(this.apiURL, this.blockfrostProjectId),
-        this.network === "preprod" ? "Preprod" : "Mainnet"
+        this.network === 'preprod'
+          ? 'Preprod'
+          : this.network === 'preview'
+            ? 'Preview'
+            : 'Mainnet',
       );
     }
-    if (!this.ready()) {
+
+    if (!this._ready) {
+      // Ensure we only set ready once
       this._ready = true;
       await this.loadTokens(this._tokenListSource);
     }
-    return;
   }
 
   private getLucid(): Lucid {
-    if (!Cardano.lucidInstance) {
-      throw new Error("Lucid is not initialized. Call `init` first.");
+    if (!this.lucidInstance) {
+      // Use instance-specific Lucid
+      throw new Error('Lucid is not initialized. Call `init` first.');
     }
-    return Cardano.lucidInstance;
+    return this.lucidInstance;
   }
 
-  public async getWalletFromPrivateKey(privateKey: string,): Promise<{
+  public async getWalletFromPrivateKey(privateKey: string): Promise<{
     address: string;
   }> {
     if (!this._ready) {
-      throw new Error("Cardano instance is not initialized. Call `init` first.");
+      throw new Error(
+        'Cardano instance is not initialized. Call `init` first.',
+      );
     }
 
     try {
@@ -129,7 +142,9 @@ export class Cardano {
       const address = await lucid.wallet.address();
       return { address };
     } catch (error: any) {
-      throw new Error(`Error retrieving wallet from private key: ${error.message}`);
+      throw new Error(
+        `Error retrieving wallet from private key: ${error.message}`,
+      );
     }
   }
 
@@ -139,7 +154,7 @@ export class Cardano {
     const path = `${walletPath}/${this._chain}`;
     const encryptedPrivateKey: string = await fse.readFile(
       `${path}/${address}.json`,
-      'utf8'
+      'utf8',
     );
     const passphrase = ConfigManagerCertPassphrase.readPassphrase();
     if (!passphrase) {
@@ -164,7 +179,7 @@ export class Cardano {
     // Calculate total balance in ADA using BigInt
     const totalLovelace = utxos.reduce(
       (acc, utxo) => acc + (utxo.assets.lovelace || 0n),
-      0n
+      0n,
     );
 
     // Convert Lovelace (BigInt) to ADA (Number)
@@ -181,10 +196,10 @@ export class Cardano {
     if (!tokenInfo || tokenInfo.length === 0) {
       throw new Error(`Token ${token} is not supported.`);
     }
-    console.log("tokenInfo", tokenInfo);
+    console.log('tokenInfo', tokenInfo);
 
     tokenAdress = tokenInfo[0]?.policyId + tokenInfo[0]?.assetName;
-    console.log("tokenAdress", tokenAdress);
+    console.log('tokenAdress', tokenAdress);
 
     const Lucid = this.getLucid();
     const wallet = Lucid.selectWalletFromPrivateKey(privateKey);
@@ -202,8 +217,14 @@ export class Cardano {
       }
       return acc;
     }, 0);
+    // Divide raw balance by 10^decimals to get the actual amount
+    const decimals = tokenInfo[0].decimals;
+    const actualTokenBalance = calculatedTokenBalance / Math.pow(10, decimals);
+    console.log('calculatedTokenBalance: ', calculatedTokenBalance);
+    console.log('actualTokenBalance: ', actualTokenBalance);
 
-    return calculatedTokenBalance.toString();
+    // Round to the specified decimal places
+    return actualTokenBalance.toFixed(decimals);
   }
 
   async encrypt(secret: string, password: string): Promise<string> {
@@ -252,14 +273,11 @@ export class Cardano {
   }
 
   async getCurrentBlockNumber(): Promise<number> {
-    const response = await fetch(
-      `${this.apiURL}/blocks/latest`,
-      {
-        headers: {
-          project_id: this.blockfrostProjectId,
-        },
-      }
-    );
+    const response = await fetch(`${this.apiURL}/blocks/latest`, {
+      headers: {
+        project_id: this.blockfrostProjectId,
+      },
+    });
 
     if (!response.ok) {
       throw new Error(`Error fetching latest block: ${response.statusText}`);
@@ -273,7 +291,7 @@ export class Cardano {
     try {
       // Fetch transaction details from Blockfrost
       const response = await fetch(`${this.apiURL}/txs/${txHash}`, {
-        method: "GET",
+        method: 'GET',
         headers: {
           project_id: this.blockfrostProjectId, // Pass project ID in the header
         },
@@ -295,7 +313,7 @@ export class Cardano {
         blockTime: tx.block_time,
         fees: tx.fees,
         validContract: tx.valid_contract,
-        status: tx.block ? "confirmed" : "pending", // Simplified status
+        status: tx.block ? 'confirmed' : 'pending', // Simplified status
       };
     } catch (error) {
       console.error(`Error fetching transaction: ${error}`);
@@ -303,9 +321,7 @@ export class Cardano {
     }
   }
 
-  async loadTokens(
-    tokenListSource: string,
-  ): Promise<void> {
+  async loadTokens(tokenListSource: string): Promise<void> {
     this.tokenList = await this.getTokenList(tokenListSource);
     if (this.tokenList) {
       this.tokenList.forEach((token: CardanoTokenInfo) => {
@@ -318,9 +334,7 @@ export class Cardano {
     }
   }
 
-  async getTokenList(
-    tokenListSource: string
-  ): Promise<CardanoTokenInfo[]> {
+  async getTokenList(tokenListSource: string): Promise<CardanoTokenInfo[]> {
     let tokenList = JSON.parse(await fs.readFile(tokenListSource, 'utf8'));
     return tokenList.tokens;
   }
@@ -329,12 +343,12 @@ export class Cardano {
     return this.tokenList;
   }
 
-  public getTokenForSymbol(symbol: string): CardanoTokenInfo[] | undefined {
-    return this._tokenMap[symbol] ? this._tokenMap[symbol] : undefined;
+  public getTokenForSymbol(symbol: string): CardanoTokenInfo[] {
+    return this._tokenMap[symbol] ?? [];
   }
 
   public getTokenAddress(symbol: string): string {
-    let tokenAddress: string = "";
+    let tokenAddress: string = '';
     let tokenInfo = this.getTokenForSymbol(symbol);
     // If token information is not found, throw an error
     if (!tokenInfo || tokenInfo.length === 0) {
@@ -342,7 +356,7 @@ export class Cardano {
       throw new HttpException(
         500,
         TOKEN_NOT_SUPPORTED_ERROR_MESSAGE,
-        TOKEN_NOT_SUPPORTED_ERROR_CODE
+        TOKEN_NOT_SUPPORTED_ERROR_CODE,
       );
     }
     // console.log("tokenInfo", tokenInfo);
@@ -358,5 +372,4 @@ export class Cardano {
       delete Cardano._instances[this._chain];
     }
   }
-
 }

@@ -147,7 +147,7 @@ async function initializeTrade(
     network,
     blockfrostProjectId,
     blockfrostUrl,
-    wallet.privateKey
+    wallet.privateKey,
   );
 
   return {
@@ -253,7 +253,7 @@ export async function price(
     base: baseToken,
     quote: quoteToken,
     amount: new Decimal(req.amount).toFixed(2).toString(),
-    rawAmount: expectedAmount,
+    rawAmount: new Decimal(req.amount).mul(1000000).toString(),
     expectedAmount: expectedAmount,
     price: new Decimal(b.toString()).toFixed(2).toString(),
     gasPrice: 0,
@@ -353,8 +353,10 @@ export async function trade(
   };
 }
 
-export async function poolPrice(cardano: Cardano,
-  req: PoolPriceRequest): Promise<PoolPriceResponse> {
+export async function poolPrice(
+  cardano: Cardano,
+  req: PoolPriceRequest,
+): Promise<PoolPriceResponse> {
   const startTimestamp: number = Date.now();
   const reqNetwork: any = req.network;
 
@@ -386,18 +388,14 @@ export async function poolPrice(cardano: Cardano,
     poolId,
   );
 
-  const [priceA, priceB] = await blockfrostAdapterInstance.getV1PoolPrice({ pool: poolState });
+  const [priceA, priceB] = await blockfrostAdapterInstance.getV1PoolPrice({
+    pool: poolState,
+  });
   // console.log(priceA, priceB);
 
-  const token0Address = getTokenAddressFromSymbol(
-    cardano,
-    req.token0
-  );
+  const token0Address = getTokenAddressFromSymbol(cardano, req.token0);
 
-  const token1Address = getTokenAddressFromSymbol(
-    cardano,
-    req.token1
-  );
+  const token1Address = getTokenAddressFromSymbol(cardano, req.token1);
 
   return {
     network: cardano.chain,
@@ -441,7 +439,7 @@ export async function addLiquidity(
     network,
     blockfrostProjectId,
     blockfrostUrl,
-    wallet.privateKey
+    wallet.privateKey,
   );
   const utxos = await lucid.utxosAt(address);
   // console.log("utxos: ", utxos);
@@ -458,7 +456,6 @@ export async function addLiquidity(
   const transactionId = await commitTransaction(txComplete);
   const token0Address = getTokenAddressFromSymbol(cardanoish, req.token0);
   const token1Address = getTokenAddressFromSymbol(cardanoish, req.token1);
-
 
   return {
     network: req.chain,
@@ -509,8 +506,6 @@ async function depositTx(
   const depositedAmountB = BigInt(amount1);
   // console.log(depositedAmountA);
   // console.log(depositedAmountB);
-
-
 
   const { necessaryAmountA, necessaryAmountB, lpAmount } = calculateDeposit({
     depositedAmountA,
@@ -570,7 +565,7 @@ export async function removeLiquidity(
     network,
     blockfrostProjectId,
     blockfrostUrl,
-    wallet.privateKey
+    wallet.privateKey,
   );
   const utxos = await lucid.utxosAt(address);
   const txComplete = await withdrawTx(
@@ -630,13 +625,15 @@ async function withdrawTx(
   // console.log("lpAmountInWallet:::", lpAmountInWallet);
 
   if (lpAmountInWallet === 0n) {
-    throw new Error("No LP tokens available in the wallet.");
+    throw new Error('No LP tokens available in the wallet.');
   }
 
   // Calculate withdrawal amount (percentage of LP tokens in the wallet)
   const withdrawalAmount = (lpAmountInWallet * BigInt(withAmt)) / 100n;
   if (withdrawalAmount === 0n) {
-    throw new Error("Withdrawal amount is zero. Adjust the percentage or check LP tokens.");
+    throw new Error(
+      'Withdrawal amount is zero. Adjust the percentage or check LP tokens.',
+    );
   }
   // console.log("withdrawalAmount:::", withdrawalAmount);
 
@@ -651,7 +648,9 @@ async function withdrawTx(
   // console.log("amountBReceive:::", amountBReceive);
 
   if (amountAReceive <= 0n || amountBReceive <= 0n) {
-    throw new Error("Received amounts are invalid. Check pool reserves or withdrawal amount.");
+    throw new Error(
+      'Received amounts are invalid. Check pool reserves or withdrawal amount.',
+    );
   }
 
   // console.log("Building withdrawal transaction...");
@@ -668,7 +667,6 @@ async function withdrawTx(
   });
 }
 
-
 export const latency = (startTime: number, endTime: number): number => {
   return (endTime - startTime) / 1000;
 };
@@ -677,14 +675,14 @@ async function getBackendLucidInstance(
   network: Network,
   projectId: string,
   blockfrostUrl: string,
-  privateKey: string
+  privateKey: string,
 ): Promise<Lucid> {
   const provider = new Blockfrost(blockfrostUrl, projectId);
   const lucid = await Lucid.new(provider, network);
 
   // console.log('address:::', address);
   //in the adrdress field we actually need to get the seed phrase to identify the wallet
-  // lucid.selectWalletFromSeed(seedPhrase); 
+  // lucid.selectWalletFromSeed(seedPhrase);
   lucid.selectWalletFromPrivateKey(privateKey);
   return lucid;
 }
@@ -771,7 +769,6 @@ async function swapExactInTx(
   return transactionId;
 }
 
-
 async function swapExactOutTx(
   network: Network,
   lucid: Lucid,
@@ -824,7 +821,6 @@ async function swapExactOutTx(
   return transactionId;
 }
 
-
 async function cancelTx(
   lucid: Lucid,
   blockFrostAdapter: BlockfrostAdapter,
@@ -851,17 +847,16 @@ async function cancelTx(
   return transactionId;
 }
 
-
 function getTokenAddressFromSymbol(
   cardano: Cardano,
-  tokenSymbol: string
+  tokenSymbol: string,
 ): string {
   const tokenAddress = cardano.getTokenAddress(tokenSymbol);
   if (!tokenAddress)
     throw new HttpException(
       500,
       TOKEN_NOT_SUPPORTED_ERROR_MESSAGE + tokenSymbol,
-      TOKEN_NOT_SUPPORTED_ERROR_CODE
+      TOKEN_NOT_SUPPORTED_ERROR_CODE,
     );
   return tokenAddress;
 }
@@ -875,4 +870,3 @@ function calculateAssetAmount(utxos: UTxO[], asset: Asset): bigint {
     return acc;
   }, 0n); // Initialize the accumulator with BigInt zero
 }
-

@@ -6,7 +6,22 @@
     "blockfrostProjectId": { "type": "string" },
     "nativeCurrencySymbol": { "type": "string" },
     "preprodBlockfrostProjectId": { "type": "string" },
+    "previewBlockfrostProjectId": { "type": "string" },
     "defaultPoolId": {
+      "type": "object",
+      "patternProperties": {
+        "^\\w+$": {
+          "type": "object",
+          "properties": {
+            "poolId": { "type": "string" }
+          },
+          "required": ["poolId"],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "sundaeswapPoolId": {
       "type": "object",
       "patternProperties": {
         "^\\w+$": {
@@ -66,9 +81,23 @@
             "nativeCurrencySymbol"
           ],
           "additionalProperties": false
+        },
+        "preview": {
+          "type": "object",
+          "properties": {
+            "tokenListType": { "type": "string" },
+            "tokenListSource": { "type": "string" },
+            "nativeCurrencySymbol": { "type": "string" }
+          },
+          "required": [
+            "tokenListType",
+            "tokenListSource",
+            "nativeCurrencySymbol"
+          ],
+          "additionalProperties": false
         }
       },
-      "required": ["mainnet", "preprod"],
+      "required": ["mainnet", "preprod", "preview"],
       "additionalProperties": false
     }
   },
@@ -77,8 +106,10 @@
     "allowedSlippage",
     "blockfrostProjectId",
     "preprodBlockfrostProjectId",
+    "previewBlockfrostProjectId",
     "ttl",
     "defaultPoolId",
+    "sundaeswapPoolId",
     "defaultAddress",
     "contractAddresses",
     "networks"
