@@ -59,10 +59,10 @@ export class Sundaeswap {
    * If poolData is already provided, it will be used.
    */
   async estimateBuyTrade(
-    amount: string,
+    amount: string, // Desired amount of base token (SBERRY) to receive
     queryProvider: any,
     sundaeswapPoolId: string,
-    decimal: number,
+    baseDecimal: number,
     base: CardanoTokenInfo,
     quote: CardanoTokenInfo,
     poolData?: any,
@@ -70,9 +70,11 @@ export class Sundaeswap {
     if (!poolData) {
       poolData = await this.getPoolData(sundaeswapPoolId, queryProvider);
     }
+
+    // console.log(poolData);
+
     const assetA = poolData.assetA.assetId.trim();
     const assetB = poolData.assetB.assetId.trim();
-    const fee = new BigNumber(poolData.currentFee);
 
     // Validate base and quote assets
     const isBaseCorrect =
@@ -83,41 +85,28 @@ export class Sundaeswap {
     if (!isQuoteADA) throw new Error('Quote must be ADA');
 
     // Get reserves
-    const baseReserve = new BigNumber(poolData.liquidity.bReserve);
-    const quoteReserve = new BigNumber(poolData.liquidity.aReserve);
+    const baseReserve = new BigNumber(poolData.liquidity.bReserve); // SBERRY reserve
+    const quoteReserve = new BigNumber(poolData.liquidity.aReserve); // ADA reserve
 
-    // Convert base amount to smallest units (e.g., lovelace)
-    const baseAmount = new BigNumber(amount).times(10 ** decimal);
+    // Convert base amount to smallest units
+    const baseAmount = new BigNumber(amount).times(10 ** baseDecimal); // SBERRY amount in smallest units
 
-    // AMM calculation
+    // AMM calculation: Calculate the required ADA amount
     const numerator = quoteReserve.times(baseAmount);
     const denominator = baseReserve.minus(baseAmount);
     let quoteAmount = numerator.div(denominator);
 
-    // Apply pool fee (0.3%)
-    quoteAmount = quoteAmount.div(new BigNumber(1).minus(fee));
+    // Apply pool fee (0.5%)
+    const fee = poolData.currentFee; // 0.5% fee
+    quoteAmount = quoteAmount.div(1 - fee); // Adjust for fee
 
-    // Add SundaeSwap protocol fees (example values - adjust based on actual fees)
+    // Convert back to ADA units (6 decimals)
     const quoteDecimal = quote.decimals; // ADA has 6 decimals
-    const sundaeProtocolFee = new BigNumber(1.28).times(10 ** quoteDecimal); // 1.28 ADA
-    const depositFee = new BigNumber(2).times(10 ** quoteDecimal); // 2 ADA deposit
-    const txFee = new BigNumber(0.4).times(10 ** quoteDecimal); // 0.4 ADA network fee
-    const liquidityProviderFee = quoteAmount.times(0.003);
-    // console.log('liquidityProviderFee', liquidityProviderFee.toString());
-
-    // Sum additional fees
-    const totalFees = sundaeProtocolFee
-      .plus(depositFee)
-      .plus(txFee)
-      .plus(liquidityProviderFee);
-    quoteAmount = quoteAmount.plus(totalFees);
-
-    // Convert back to ADA units
     const expectedAmount = quoteAmount.div(10 ** quoteDecimal).toFixed(6);
 
     return {
       expectedAmount,
-      rawAmount: quoteAmount.toFixed(0),
+      rawAmount: quoteAmount.toFixed(0), // Raw amount in smallest units (lovelace)
     };
   }
 
@@ -125,7 +114,7 @@ export class Sundaeswap {
     amount: string,
     queryProvider: any,
     sundaeswapPoolId: string,
-    decimal: number,
+    baseDecimal: number,
     base: CardanoTokenInfo,
     quote: CardanoTokenInfo,
   ): Promise<ExpectedTrade> {
@@ -146,15 +135,16 @@ export class Sundaeswap {
       throw new Error('Quote token must be ADA in this trade.');
     }
 
-    // For SELL trades, the user is selling base tokens.
-    const baseAmount = new BigNumber(amount);
+    // Convert base amount to smallest units
+    const baseAmount = new BigNumber(amount).times(10 ** baseDecimal);
+
     const amountWithFee = baseAmount.multipliedBy(new BigNumber(1).minus(fee));
     const baseReserve = new BigNumber(poolData.liquidity.bReserve);
     const quoteReserve = new BigNumber(poolData.liquidity.aReserve);
     const receivedQuote = quoteReserve
       .multipliedBy(amountWithFee)
       .dividedBy(baseReserve.plus(amountWithFee));
-    const expectedAmount = receivedQuote.dividedBy(10 ** decimal);
+    const expectedAmount = receivedQuote.dividedBy(10 ** quote.decimals);
 
     return {
       expectedAmount: expectedAmount.toFixed(6),
@@ -179,67 +169,30 @@ export class Sundaeswap {
   ): Promise<Transaction> {
     // console.log(`Executing trade: ${amount} ${side}`);
 
-    // Validate tokens
-    if (base.symbol !== 'SBERRY' || quote.symbol !== 'ADA') {
-      throw new Error(
-        'Invalid token pair. base must be SBERRY or Sundae and quote must be ADA.',
-      );
-    }
-
     const queryProvider = new QueryProviderSundaeSwap(network);
     // Fetch pool data only once.
     const poolData = await this.getPoolData(
       cardanoish.sundaeswapPoolId,
       queryProvider,
     );
+    // console.log(poolData);
+
     const baseDecimal = base.decimals;
     const quoteDecimal = quote.decimals; // ADA has 6 decimals
 
     let suppliedAsset;
     if (side.toUpperCase() === 'BUY') {
       // Validate pool data
-      if (!poolData?.liquidity?.aReserve || !poolData?.liquidity?.bReserve) {
-        throw new Error('Invalid pool reserves');
-      }
-
-      // Convert amount to BigNumber
-      const amountBN = new BigNumber(amount);
-
-      // Calculate price of SBERRY
-      const priceOfToken = new BigNumber(poolData.liquidity.aReserve).dividedBy(
-        poolData.liquidity.bReserve,
+      const { rawAmount } = await this.estimateBuyTrade(
+        amount,
+        queryProvider,
+        cardanoish.sundaeswapPoolId,
+        baseDecimal,
+        base,
+        quote,
+        poolData,
       );
-      // console.log('priceOfToken', priceOfToken.toFixed());
-
-      // Calculate estimated Lovelace amount required
-      const estimatedLovelace = priceOfToken.times(amountBN);
-      // console.log('estimatedLovelace', estimatedLovelace.toFixed());
-
-      // Add transaction fees
-      const sundaeProtocolFee = new BigNumber(1.28);
-      const depositFee = new BigNumber(2);
-      const txFee = new BigNumber(0.4);
-      const liquidityProviderFee = estimatedLovelace.times(0.003);
-      // console.log('liquidityProviderFee', liquidityProviderFee.toString());
-
-      const totalFees = txFee
-        .plus(sundaeProtocolFee)
-        .plus(depositFee)
-        .plus(liquidityProviderFee);
-      // console.log('Total Fees:', totalFees.toFixed());
-
-      // Final ADA amount required
-      const finalLovelaceAmount = estimatedLovelace.plus(totalFees);
-      // console.log(
-      //   'Final finalLovelaceAmount Amount:',
-      //   finalLovelaceAmount.toFixed(),
-      // );
-
-      // Convert to BigInt for on-chain transaction
-      const adaRawAmount = BigInt(finalLovelaceAmount.toFixed(0));
-      // console.log('adaRawAmount', adaRawAmount);
-
-      suppliedAsset = new AssetAmount(adaRawAmount, poolData.assetA);
+      suppliedAsset = new AssetAmount(rawAmount, poolData.assetA);
     } else if (side.toUpperCase() === 'SELL') {
       // For a SELL, amount is the SBERRY tokens to sell.
       const baseAmountBN = new BigNumber(amount).multipliedBy(
@@ -279,7 +232,7 @@ export class Sundaeswap {
 
     const { submit } = await builtTx.sign();
     const txHash = await submit();
-    console.log('Transaction Hash:', txHash);
+    // console.log('Transaction Hash:', txHash);
 
     return {
       hash: txHash,
@@ -367,7 +320,7 @@ export class Sundaeswap {
     // console.log(submit);
 
     const txHash = await submit();
-    console.log('Transaction Hash:', txHash);
+    // console.log('Transaction Hash:', txHash);
 
     // console.log('Working upto here!!!!');
     return {
@@ -430,7 +383,7 @@ export class Sundaeswap {
     const { submit, cbor } = await builtTx.sign();
     const txHash = await submit();
 
-    console.log('Liquidity Withdrawal Transaction Hash:', txHash);
+    // console.log('Liquidity Withdrawal Transaction Hash:', txHash);
 
     return {
       hash: txHash,
@@ -464,7 +417,9 @@ export class Sundaeswap {
     const quoteReserve = new BigNumber(poolData.liquidity.aReserve);
 
     for (let i = 0; i < fetchPriceTime.length - 1; i++) {
-      const price = quoteReserve.dividedBy(baseReserve).dividedBy(10 ** 6);
+      const price = quoteReserve
+        .dividedBy(baseReserve)
+        .dividedBy(10 ** poolData.assetA.decimals);
       prices.push(price.toFixed(6));
     }
     return { prices, pools: sundaeswapPoolId };

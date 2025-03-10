@@ -93,7 +93,7 @@ export async function getTradeInfo(
         baseAmount,
         queryProvider,
         cardanoish.sundaeswapPoolId,
-        quoteToken[0]?.decimals,
+        baseToken[0]?.decimals,
         baseToken[0],
         quoteToken[0],
       );
