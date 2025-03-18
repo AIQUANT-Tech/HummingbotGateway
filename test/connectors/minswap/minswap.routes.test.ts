@@ -51,7 +51,7 @@ const patchStoredTokenList = () => {
     patch(cardano, 'tokenList', () => {
         return [
             [{
-                policyId: '',
+                policyId: 'ada',
                 assetName: 'lovelace',
                 decimals: 6,
                 name: 'Cardano Native Token',

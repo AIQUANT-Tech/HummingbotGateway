@@ -7,13 +7,13 @@
     {
       "policyId": "e16c2dc8ae937e8d3790c7fd7168d7b994621ba14ca11415f39fed72",
       "assetName": "4d494e",
-      "decimals": 6,
+      "decimals": 0,
       "name": "Minswap Token",
       "symbol": "MIN",
       "logoURI": "https://ibb.co/L1Tp0rQ"
     },
     {
-      "policyId": "",
+      "policyId": "ada",
       "assetName": "lovelace",
       "decimals": 6,
       "name": "Cardano Native Token",
@@ -23,7 +23,7 @@
     {
       "policyId": "e4214b7cce62ac6fbba385d164df48e157eae5863521b4b67ca71d86",
       "assetName": "3bb0079303c57812462dec9de8fb867cef8fd3768de7f12c77f6f0dd80381d0d",
-      "decimals": 6,
+      "decimals": 0,
       "name": "Minswap Liquidity pool token",
       "symbol": "LP",
       "logoURI": "https://ibb.co/L1Tp0rQ"

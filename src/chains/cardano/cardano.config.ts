@@ -9,53 +9,60 @@ interface Config {
   allowedSlippage: string;
   blockfrostProjectId: string;
   preprodBlockfrostProjectId: string;
+  previewBlockfrostProjectId: string;
   ttl: string;
   defaultPoolId: string;
+  sundaeswapPoolId : string;
   defaultAddress: string;
   nativeCurrencySymbol: string;
   tokenListType: string; // default: FILE
   tokenListSource: string; // default: src/chains/cardano/cardano_tokens.json
+
 }
 
 export function getCardanoConfig(
   chainName: string,
-  networkName: string
+  networkName: string,
 ): Config {
   const network = networkName;
   return {
     network: {
       name: network,
       apiurl: ConfigManagerV2.getInstance().get(
-        chainName + '.contractAddresses.' + networkName + '.apiurl'
-      )
+        chainName + '.contractAddresses.' + networkName + '.apiurl',
+      ),
     },
 
     allowedSlippage: ConfigManagerV2.getInstance().get(
-      chainName + '.allowedSlippage'
+      chainName + '.allowedSlippage',
     ),
     blockfrostProjectId: ConfigManagerV2.getInstance().get(
-      chainName + '.blockfrostProjectId'
+      chainName + '.blockfrostProjectId',
     ),
     preprodBlockfrostProjectId: ConfigManagerV2.getInstance().get(
-      chainName + '.preprodBlockfrostProjectId'
+      chainName + '.preprodBlockfrostProjectId',
+    ),
+    previewBlockfrostProjectId: ConfigManagerV2.getInstance().get(
+      chainName + '.previewBlockfrostProjectId',
     ),
     defaultPoolId: ConfigManagerV2.getInstance().get(
-      chainName + '.defaultPoolId.' + networkName + '.poolId'
+      chainName + '.defaultPoolId.' + networkName + '.poolId',
+    ),
+    sundaeswapPoolId: ConfigManagerV2.getInstance().get(
+      chainName + '.sundaeswapPoolId.' + networkName + '.poolId'
     ),
     defaultAddress: ConfigManagerV2.getInstance().get(
-      chainName + '.defaultAddress'
+      chainName + '.defaultAddress',
     ),
-    ttl: ConfigManagerV2.getInstance().get(
-      chainName + '.ttl'
-    ),
+    ttl: ConfigManagerV2.getInstance().get(chainName + '.ttl'),
     nativeCurrencySymbol: ConfigManagerV2.getInstance().get(
-      chainName + '.networks.' + networkName + '.nativeCurrencySymbol'
+      chainName + '.networks.' + networkName + '.nativeCurrencySymbol',
     ),
     tokenListType: ConfigManagerV2.getInstance().get(
-      chainName + '.networks.' + networkName + '.tokenListType'
+      chainName + '.networks.' + networkName + '.tokenListType',
     ),
     tokenListSource: ConfigManagerV2.getInstance().get(
-      chainName + '.networks.' + networkName + '.tokenListSource'
+      chainName + '.networks.' + networkName + '.tokenListSource',
     ),
   };
 }

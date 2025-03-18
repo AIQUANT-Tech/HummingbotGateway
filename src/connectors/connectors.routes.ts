@@ -45,7 +45,7 @@ export namespace ConnectorsRoutes {
             trading_type: UniswapConfig.config.tradingTypes('LP'),
             chain_type: UniswapConfig.config.chainType,
             available_networks: JSON.parse(
-              JSON.stringify(UniswapConfig.config.availableNetworks)
+              JSON.stringify(UniswapConfig.config.availableNetworks),
             ),
             additional_spenders: ['uniswap'],
           },
@@ -197,11 +197,23 @@ export namespace ConnectorsRoutes {
             available_networks: [
               {
                 chain: 'cardano',
-                networks: ['mainnet', 'preprod']
-              }]
-          }
+                networks: ['mainnet', 'preprod'],
+              },
+            ],
+          },
+          {
+            name: 'sundaeswap',
+            trading_type: ['AMM'],
+            chain_type: 'cardano',
+            available_networks: [
+              {
+                chain: 'cardano',
+                networks: ['mainnet', 'preview'],
+              },
+            ],
+          },
         ],
       });
-    })
+    }),
   );
 }
