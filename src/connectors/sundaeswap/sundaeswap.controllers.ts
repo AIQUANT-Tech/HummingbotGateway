@@ -1,7 +1,7 @@
 import { Cardano, CardanoTokenInfo } from '../../chains/cardano/cardano';
 import { Sundaeswap } from './sundaeswap';
 import { ConfigManagerV2 } from '../../services/config-manager-v2';
-import { Transaction } from './Sundaeswap.config';
+import { Transaction } from './sundaeswap.config';
 import {
   PriceRequest,
   PriceResponse,
@@ -60,7 +60,7 @@ import {
 
 import { AssetAmount } from '@sundaeswap/asset';
 
-import { TradeInfo, ExpectedTrade } from './Sundaeswap.config';
+import { TradeInfo, ExpectedTrade } from './sundaeswap.config';
 
 export async function getTradeInfo(
   cardanoish: Cardano,

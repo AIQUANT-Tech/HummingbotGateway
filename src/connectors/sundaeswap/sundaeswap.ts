@@ -9,7 +9,7 @@ Math.pow = function (base, exponent) {
 
 import { Lucid } from 'lucid-cardano';
 import { logger } from '../../services/logger';
-import { ExpectedTrade, Transaction } from './Sundaeswap.config';
+import { ExpectedTrade, Transaction } from './sundaeswap.config';
 import { BigNumber } from 'bignumber.js'; // For precise calculations
 import { Cardano, CardanoTokenInfo } from '../../chains/cardano/cardano';
 
