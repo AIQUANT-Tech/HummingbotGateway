@@ -196,10 +196,10 @@ export class Cardano {
     if (!tokenInfo || tokenInfo.length === 0) {
       throw new Error(`Token ${token} is not supported.`);
     }
-    console.log('tokenInfo', tokenInfo);
+    // console.log('tokenInfo', tokenInfo);
 
     tokenAdress = tokenInfo[0]?.policyId + tokenInfo[0]?.assetName;
-    console.log('tokenAdress', tokenAdress);
+    // console.log('tokenAdress', tokenAdress);
 
     const Lucid = this.getLucid();
     const wallet = Lucid.selectWalletFromPrivateKey(privateKey);
@@ -220,8 +220,8 @@ export class Cardano {
     // Divide raw balance by 10^decimals to get the actual amount
     const decimals = tokenInfo[0].decimals;
     const actualTokenBalance = calculatedTokenBalance / Math.pow(10, decimals);
-    console.log('calculatedTokenBalance: ', calculatedTokenBalance);
-    console.log('actualTokenBalance: ', actualTokenBalance);
+    // console.log('calculatedTokenBalance: ', calculatedTokenBalance);
+    // console.log('actualTokenBalance: ', actualTokenBalance);
 
     // Round to the specified decimal places
     return actualTokenBalance.toFixed(decimals);

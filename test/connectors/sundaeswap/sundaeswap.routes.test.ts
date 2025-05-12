@@ -113,6 +113,8 @@ const patchExecuteTrade = () => {
   patch(sundaeswap, 'executeTrade', () => {
     return {
       hash: 'de50a32ec5e33d861e8d55c333d7bc40a63131e1ce0bd6f879d1af785f933ab7',
+      to: address,
+      rawAmount: 100,
     };
   });
 };
@@ -243,39 +245,39 @@ describe('POST /amm/trade', () => {
       .expect((res) => {
         console.log('Response:', res.body); // Debugging response
       });
-    //   .expect(200)
-    //   .expect((res: any) => {
-    //     expect(res.body.hash).toBeDefined();
-    //   });
+    // .expect(200)
+    // .expect((res: any) => {
+    //   expect(res.body.hash).toBeDefined();
+    // });
   });
 
-  //   const patchForSell = () => {
-  //     patchGetWallet();
-  //     patchInit();
-  //     patchStoredTokenList();
-  //     patchGetTokenBySymbol();
-  //     patchExecuteTrade();
-  //   };
-  //   it('should return 200 for SELL', async () => {
-  //     patchForSell();
-  //     await request(app)
-  //       .post(`/amm/trade`)
-  //       .send({
-  //         chain: 'cardano',
-  //         network: 'preview',
-  //         connector: 'sundaeswap',
-  //         address: address,
-  //         base: 'SBERRY',
-  //         quote: 'ADA',
-  //         amount: '1000',
-  //         side: 'SELL',
-  //       })
-  //       .set('Accept', 'application/json')
-  //       .expect(200)
-  //       .expect((res: any) => {
-  //         expect(res.body.txHash).toBeDefined();
-  //       });
-  //   });
+  const patchForSell = () => {
+    patchGetWallet();
+    patchInit();
+    patchStoredTokenList();
+    patchGetTokenBySymbol();
+    patchExecuteTrade();
+  };
+  it('should return 200 for SELL', async () => {
+    patchForSell();
+    await request(app)
+      .post(`/amm/trade`)
+      .send({
+        chain: 'cardano',
+        network: 'preview',
+        connector: 'sundaeswap',
+        address: address,
+        base: 'SBERRY',
+        quote: 'ADA',
+        amount: '1000',
+        side: 'SELL',
+      })
+      .set('Accept', 'application/json')
+      .expect(200)
+      .expect((res: any) => {
+        expect(res.body.txHash).toBeDefined();
+      });
+  });
 
   it('should return 404 when parameters are incorrect', async () => {
     patchInit();
